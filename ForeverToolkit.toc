@@ -1,0 +1,24 @@
+## Interface: 120100, 120000, 16001
+## Interface-Retail: 120100
+## Interface-Camelot: 16001
+## Title: Forever Toolkit
+## Notes: Menu and minimap button for independent in-game tools.
+## Author: Forever Toolkit
+## Version: 0.9.5
+## IconTexture: Interface\Icons\INV_Misc_Wrench_01
+## SavedVariables: ForeverToolkitDB
+
+Core.lua
+Minimap.lua
+Menu.lua
+
+# Feature modules are listed below, one file per feature.
+Modules\SpellIdTooltip.lua
+Modules\SpellMaxer.lua
+Modules\BagSections.lua
+Modules\CleanBank.lua
+Modules\QuickDrop.lua
+Modules\AutoSellJunk.lua
+Modules\QuickHands.lua
+Modules\EnemyPlayerAlert.lua
+Modules\ClickHeal.lua
