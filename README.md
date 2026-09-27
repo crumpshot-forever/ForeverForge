@@ -47,4 +47,4 @@ See [CHANGELOG.md](CHANGELOG.md).
 
 ## Support
 
-Forever Forge is free, including every future update. If it saves you time, you can leave a tip: https://ko-fi.com/crumpshot
+Forever Forge is free, including every future update. If you've enjoyed this addon, please leave a donation and tell your friends. https://ko-fi.com/crumpshot
