@@ -7,6 +7,10 @@ Forever Forge versions use X.Y.Z. The install folder is `ForeverForge`.
 - Z goes up by 1 for a fix or small change.
 - The game client stays on the Interface line in `ForeverForge.toc`. It is not part of this number.
 
+## 1.0.2
+
+- The minimap button is the Forever Forge anvil icon.
+
 ## 1.0.1
 
 The installed addon is Forever Forge.

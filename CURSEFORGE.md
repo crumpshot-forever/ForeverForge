@@ -4,7 +4,7 @@ Forever Forge is one addon with a set of light-weight tools for WoW: Forever. Ea
 
 The tools sit on the normal bags, bank, loot window, party frames, and tooltips. They do not replace those screens.
 
-Open the menu with the minimap wrench, or type `/ff`, `/forge`, or `/foreverforge`.
+Open the menu with the minimap button, or type `/ff`, `/forge`, or `/foreverforge`.
 
 Install the folder named `ForeverForge`. Do not rename that folder. Remove any older `ForeverToolkit` folder so the game does not load both. The menu title is Forever Forge, and chat lines start with `Forever Forge:`. Saved settings from the older folder do not carry over.
 

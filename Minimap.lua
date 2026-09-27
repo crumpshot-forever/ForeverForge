@@ -9,6 +9,7 @@ if not FTK then
 end
 
 local DEFAULT_ANGLE = 200
+local ICON_PATH = "Interface\\AddOns\\ForeverForge\\Textures\\Minimap"
 
 local function ApplyTexture(texture, path, fileId)
   local ok = texture:SetTexture(path)
@@ -56,7 +57,7 @@ end
 
 function FTK:CreateMinimapButton()
   local btn = CreateFrame("Button", "ForeverForgeMinimapButton", Minimap)
-  btn:SetSize(31, 31)
+  btn:SetSize(40, 40)
   btn:SetFrameStrata("MEDIUM")
   btn:SetFrameLevel(8)
   btn:SetMovable(true)
@@ -64,27 +65,28 @@ function FTK:CreateMinimapButton()
   btn:RegisterForClicks("LeftButtonUp", "RightButtonUp")
   btn:RegisterForDrag("LeftButton")
 
-  pcall(btn.SetHighlightTexture, btn, "Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight")
-
-  local overlay = btn:CreateTexture(nil, "OVERLAY")
-  overlay:SetSize(53, 53)
-  overlay:SetPoint("TOPLEFT")
-  ApplyTexture(overlay, "Interface\\Minimap\\MiniMap-TrackingBorder", 136430)
-
-  local background = btn:CreateTexture(nil, "BACKGROUND")
-  background:SetSize(20, 20)
-  background:SetPoint("TOPLEFT", 7, -5)
-  ApplyTexture(background, "Interface\\Minimap\\UI-Minimap-Background", 136467)
-
   local icon = btn:CreateTexture(nil, "ARTWORK")
-  icon:SetSize(17, 17)
-  icon:SetPoint("TOPLEFT", 7, -6)
-  local iconOk = ApplyTexture(icon, "Interface\\Icons\\INV_Misc_Wrench_01")
-  if not iconOk then
-    iconOk = ApplyTexture(icon, "Interface\\Icons\\Trade_Engineering")
-  end
-  if not iconOk and icon.SetColorTexture then
-    icon:SetColorTexture(0.86, 0.7, 0.28, 1)
+  icon:SetAllPoints()
+  local iconOk = ApplyTexture(icon, ICON_PATH)
+  if iconOk then
+    local highlight = btn:CreateTexture(nil, "HIGHLIGHT")
+    highlight:SetAllPoints()
+    ApplyTexture(highlight, ICON_PATH)
+    if highlight.SetBlendMode then
+      highlight:SetBlendMode("ADD")
+    end
+    highlight:SetAlpha(0.28)
+  else
+    icon:SetSize(17, 17)
+    icon:ClearAllPoints()
+    icon:SetPoint("CENTER")
+    iconOk = ApplyTexture(icon, "Interface\\Icons\\INV_Misc_Wrench_01")
+    if not iconOk then
+      iconOk = ApplyTexture(icon, "Interface\\Icons\\Trade_Engineering")
+    end
+    if not iconOk and icon.SetColorTexture then
+      icon:SetColorTexture(0.86, 0.7, 0.28, 1)
+    end
   end
 
   btn:SetScript("OnDragStart", function(self)
