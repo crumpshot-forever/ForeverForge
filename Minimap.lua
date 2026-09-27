@@ -57,7 +57,7 @@ end
 
 function FTK:CreateMinimapButton()
   local btn = CreateFrame("Button", "ForeverForgeMinimapButton", Minimap)
-  btn:SetSize(40, 40)
+  btn:SetSize(31, 31)
   btn:SetFrameStrata("MEDIUM")
   btn:SetFrameLevel(8)
   btn:SetMovable(true)

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.3
+
+- The minimap button is smaller, in line with a standard minimap icon.
+
 ## 1.0.2
 
 - The minimap button is the Forever Forge anvil icon.
