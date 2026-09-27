@@ -7,7 +7,18 @@ Forever Forge versions use X.Y.Z. The in-game addon still uses the folder name F
 - Z goes up by 1 for a fix or small change.
 - The game client stays on the Interface line in `ForeverToolkit.toc`. It is not part of this number.
 
-The first public package will be **1.0.0**. It will be this 0.9.5 feature set, tagged and uploaded from GitHub. Nothing below is a public release yet.
+## 1.0.0
+
+First public release. Same tools as the 0.9.5 private build.
+
+- Clean Bags and Clean Bank sort those windows into labeled sections. Consumables covers food, potions, elixirs, and scrolls. Category labels stay short.
+- Quick Swap moves one section between bags and bank while the bank is open. The hearthstone stays in your bags.
+- Auto-sell junk sells grey items at a merchant and keeps quest items.
+- Ninjee Loot takes a corpse at once when auto-loot should run.
+- ID Tooltips adds spell, item, NPC, and quest IDs, and can show the quest name on a quest item.
+- SpellMaxer warns locally when one of your own action-bar spells is a lower rank than you can use.
+- Enemy Player Alert plays a short sound and posts a local line for an enemy player in nameplate range, with a guild name when the game provides it. The same character is skipped for 1 minute.
+- Click Heal lets a Priest, Druid, Paladin, or Shaman cast from party and raid frames. Your own character frame is left alone.
 
 ## 0.9.5
 

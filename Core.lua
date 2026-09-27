@@ -47,7 +47,7 @@ _G.ForeverToolkit = FTK
 -- When the version changes, also copy the addon into
 -- Addons/releases/ForeverToolkit-X.Y.Z/ForeverToolkit/ for sharing.
 -- Leave Marketing-Brief.md out of that copy. Do not move the live folder.
-FTK.VERSION = "0.9.5"
+FTK.VERSION = "1.0.0"
 FTK.modules = {}
 FTK.moduleOrder = {}
 

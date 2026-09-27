@@ -2,7 +2,7 @@
 
 One menu of small tools for WoW: Forever. Each tool has its own on/off switch. The normal bags, bank, loot window, party frames, and tooltips stay in place.
 
-Current version: **0.9.5**. The first public package will be **1.0.0**.
+Current version: **1.0.0**. This is the first public package.
 
 The public name is Forever Forge. This build still installs as the folder `ForeverToolkit`, and the in-game menu still says Forever Toolkit. That name change inside the game is the next update.
 
@@ -12,7 +12,7 @@ Open the menu with the minimap wrench, or type `/ftk`.
 
 1. Download this repository and keep the folder named `ForeverToolkit`.
 2. Put that folder in `Interface\AddOns`.
-3. Restart the game. The toolkit window should show `v0.9.5`.
+3. Restart the game. The toolkit window should show `v1.0.0`.
 
 Do not rename the folder. The game only loads it as `ForeverToolkit`.
 
