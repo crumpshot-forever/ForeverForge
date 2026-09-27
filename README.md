@@ -9,13 +9,10 @@ Open the menu with the minimap button, or type `/ff`, `/forge`, or `/foreverforg
 ## Install
 
 1. Download this repository and keep the folder named `ForeverForge`.
-2. Remove any older `ForeverToolkit` folder from `Interface\AddOns`. The game would load both.
-3. Put `ForeverForge` in `Interface\AddOns`.
-4. Restart the game. The menu should show `v1.0.2`.
+2. Put `ForeverForge` in `Interface\AddOns`.
+3. Restart the game. The menu should show `v1.0.2`.
 
 Do not rename the folder. The game only loads it when the folder name matches `ForeverForge.toc`.
-
-Saved settings from the older folder do not carry over. Turn each tool on again after the first login with this version.
 
 ## Tools
 
@@ -31,15 +28,7 @@ Saved settings from the older folder do not carry over. Turn each tool on again 
 
 Chat lines from these tools stay in your own chat window and start with `Forever Forge:`.
 
-## Version
-
-`X.Y.Z`
-
-- `X` stays 0 until the first public package, then becomes 1.
-- `Y` goes up by 1 for a new tool, and `Z` returns to 0.
-- `Z` goes up by 1 for a fix or small change.
-
-See [CHANGELOG.md](CHANGELOG.md).
+Changes are listed in [CHANGELOG.md](CHANGELOG.md).
 
 ## License
 

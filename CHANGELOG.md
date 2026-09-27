@@ -1,12 +1,5 @@
 # Changelog
 
-Forever Forge versions use X.Y.Z. The install folder is `ForeverForge`.
-
-- X stays 0 until the first public package, then becomes 1.
-- Y goes up by 1 for a new tool, and Z returns to 0.
-- Z goes up by 1 for a fix or small change.
-- The game client stays on the Interface line in `ForeverForge.toc`. It is not part of this number.
-
 ## 1.0.2
 
 - The minimap button is the Forever Forge anvil icon.
@@ -18,7 +11,6 @@ The installed addon is Forever Forge.
 - The folder name is `ForeverForge`, matching `ForeverForge.toc`.
 - The menu title and chat prefix are Forever Forge.
 - Slash commands are `/ff`, `/forge`, and `/foreverforge`.
-- Remove an older `ForeverToolkit` folder from `Interface\AddOns` before logging in. Saved settings from that folder do not carry over.
 
 ## 1.0.0
 
