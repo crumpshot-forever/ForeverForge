@@ -1,6 +1,6 @@
 # Forever Forge
 
-One menu of small tools for WoW: Forever. Each tool has its own on/off switch. The normal bags, bank, loot window, party frames, and tooltips stay in place.
+One menu of light-weight tools for WoW: Forever. Each tool has its own on/off switch. The normal bags, bank, loot window, party frames, and tooltips stay in place.
 
 Current version: **1.0.0**. This is the first public package.
 

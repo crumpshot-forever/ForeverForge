@@ -1,6 +1,6 @@
 # Forever Forge
 
-Forever Forge is one addon with a set of small tools for WoW: Forever. Each tool has its own on/off switch. Turning one off leaves the others alone. Your settings are remembered.
+Forever Forge is one addon with a set of light-weight tools for WoW: Forever. Each tool has its own on/off switch. Turning one off leaves the others alone. Your settings are remembered.
 
 The tools sit on the normal bags, bank, loot window, party frames, and tooltips. They do not replace those screens.
 
