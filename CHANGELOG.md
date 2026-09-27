@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.4
+
+- Quick Swap uses two crossing arrows instead of the handshake icon.
+
 ## 1.0.3
 
 - The minimap button is smaller, in line with a standard minimap icon.

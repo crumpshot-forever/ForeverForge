@@ -13,7 +13,7 @@ if not FTK then
 end
 
 local MODULE_ID = "QuickDrop"
-local ICON = "Interface\\Icons\\Ability_Rogue_TricksoftheTrade"
+local ICON = "Interface\\AddOns\\ForeverForge\\Textures\\QuickSwap"
 
 local session = 0
 local moving = false
@@ -296,7 +296,7 @@ local function EnsureButton(header)
   button:RegisterForClicks("LeftButtonUp")
   local icon = button:CreateTexture(nil, "ARTWORK")
   icon:SetAllPoints()
-  icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+  icon:SetTexCoord(0, 1, 0, 1)
   local applied = icon:SetTexture(ICON)
   if applied == false and icon.SetColorTexture then
     icon:SetTexCoord(0, 1, 0, 1)

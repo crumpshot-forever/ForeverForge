@@ -38,7 +38,7 @@ Category labels stay short and do not take clicks, so the bank search box stays 
 
 ## Quick Swap
 
-While the bank is open, each Clean Bags and Clean Bank section gets a handshake button to the left of its name.
+While the bank is open, each Clean Bags and Clean Bank section gets a crossed-arrows button to the left of its name.
 
 - On a bag section, the button moves that section into the bank.
 - On a bank section, the button moves that section into your bags.
