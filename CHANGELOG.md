@@ -1,6 +1,6 @@
 # Changelog
 
-Forever Toolkit versions use X.Y.Z.
+Forever Forge versions use X.Y.Z. The in-game addon still uses the folder name ForeverToolkit until the next update.
 
 - X stays 0 until the first public package, then becomes 1.
 - Y goes up by 1 for a new tool, and Z returns to 0.
