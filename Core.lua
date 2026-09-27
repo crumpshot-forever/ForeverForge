@@ -41,12 +41,11 @@ _G.ForeverForge = FTK
 -- Addon version is X.Y.Z. The Interface lines in the toc are the game client.
 -- X stays 0 until the first public package, then 1. Raise X only when saved
 -- settings would break, or a new Forever client era is certified.
--- Y goes up by 1 for a new toolkit feature, and Z returns to 0.
+-- Y goes up by 1 for a new tool, and Z returns to 0.
 -- Z goes up by 1 for a fix or small change, and Y stays.
 -- Keep this string identical to ## Version in ForeverForge.toc.
--- When the version changes, also copy the addon into
--- Addons/releases/ForeverForge-X.Y.Z/ForeverForge/ for sharing.
--- Leave Marketing-Brief.md out of that copy. Do not move the live folder.
+-- Publish a version by committing it and tagging vX.Y.Z on GitHub.
+-- Do not rename the live ForeverForge folder.
 FTK.VERSION = "1.0.1"
 FTK.modules = {}
 FTK.moduleOrder = {}
