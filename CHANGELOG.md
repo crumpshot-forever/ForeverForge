@@ -9,6 +9,10 @@ Forever Toolkit versions use X.Y.Z.
 
 The first public package will be **1.0.0**. It will be this 0.9.5 feature set, tagged and uploaded from GitHub. Nothing below is a public release yet.
 
+## 0.9.6
+
+- `/ftk author` opens a small box that shows who made the toolkit.
+
 ## 0.9.5
 
 - Enemy Player Alert lists every enemy in range. The 10-name cap is gone.

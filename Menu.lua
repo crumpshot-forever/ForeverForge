@@ -589,3 +589,58 @@ function FTK:CloseMenu()
     Menu.frame:Hide()
   end
 end
+
+local ABOUT_W = 320
+local ABOUT_H = 130
+local ABOUT_TEXT = "Developed by Crumpshot and Jztiger"
+
+local function EnsureAbout()
+  if Menu.about then
+    return Menu.about
+  end
+
+  local frame = MakeFrame("ForeverToolkitAboutFrame", UIParent, ABOUT_W, ABOUT_H)
+  frame:Hide()
+  frame:SetFrameStrata("DIALOG")
+  frame:SetToplevel(true)
+  frame:EnableMouse(true)
+  frame:SetClampedToScreen(true)
+  frame:SetPoint("CENTER", UIParent, "CENTER", 0, 120)
+  WithBackdrop(frame, 0.07, 0.05, 0.04, 0.96, 0.78, 0.64, 0.32, 1)
+  Menu.about = frame
+
+  if type(UISpecialFrames) == "table" then
+    table.insert(UISpecialFrames, "ForeverToolkitAboutFrame")
+  end
+
+  local title = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+  title:SetPoint("TOP", 0, -16)
+  title:SetTextColor(0.93, 0.8, 0.45)
+  title:SetText(LIST_TITLE)
+
+  local text = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+  text:SetPoint("TOP", title, "BOTTOM", 0, -14)
+  text:SetWidth(ABOUT_W - 32)
+  text:SetJustifyH("CENTER")
+  text:SetWordWrap(true)
+  text:SetTextColor(0.95, 0.88, 0.72)
+  text:SetText(ABOUT_TEXT)
+
+  local ok = MakeTextButton(frame, "OK", 80)
+  ok:SetPoint("BOTTOM", 0, 14)
+  ok:SetScript("OnClick", function()
+    frame:Hide()
+  end)
+
+  frame:SetScript("OnShow", function(self)
+    self:Raise()
+  end)
+
+  return frame
+end
+
+function FTK:ShowAbout()
+  local frame = EnsureAbout()
+  frame:Show()
+  frame:Raise()
+end

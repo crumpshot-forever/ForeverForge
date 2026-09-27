@@ -47,7 +47,7 @@ _G.ForeverToolkit = FTK
 -- When the version changes, also copy the addon into
 -- Addons/releases/ForeverToolkit-X.Y.Z/ForeverToolkit/ for sharing.
 -- Leave Marketing-Brief.md out of that copy. Do not move the live folder.
-FTK.VERSION = "0.9.5"
+FTK.VERSION = "0.9.6"
 FTK.modules = {}
 FTK.moduleOrder = {}
 
@@ -235,6 +235,7 @@ function FTK:PrintHelp()
   self:Print("/ftk - open or close the menu")
   self:Print("/ftk reset - move the minimap button back")
   self:Print("/ftk modules - list features")
+  self:Print("/ftk author - show who made the toolkit")
 end
 
 function FTK:OnSlash(msg)
@@ -259,6 +260,12 @@ function FTK:OnSlash(msg)
   end
   if msg == "help" or msg == "?" then
     self:PrintHelp()
+    return
+  end
+  if msg == "author" or msg == "about" then
+    if self.ShowAbout then
+      self:ShowAbout()
+    end
     return
   end
   if msg == "reset" or msg == "resetminimap" then

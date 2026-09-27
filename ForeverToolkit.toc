@@ -4,7 +4,7 @@
 ## Title: Forever Toolkit
 ## Notes: Menu and minimap button for independent in-game tools.
 ## Author: Forever Toolkit
-## Version: 0.9.5
+## Version: 0.9.6
 ## IconTexture: Interface\Icons\INV_Misc_Wrench_01
 ## SavedVariables: ForeverToolkitDB
 
