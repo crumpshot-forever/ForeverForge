@@ -118,6 +118,6 @@ The same binding list appears on the party or raid frame tooltip.
 - Friendly health is not drawn on a separate bar. Click Heal uses the frames already on screen.
 - The install folder for this build is `ForeverToolkit`.
 
-Source and changelog: https://github.com/crumpshot-forever/ForeverToolkit
+Source and changelog: https://github.com/crumpshot-forever/ForeverForge
 
 License: MIT
