@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.5
+
+- Quick Swap uses the Forever Forge anvil icon.
+
 ## 1.0.4
 
 - Quick Swap uses two crossing arrows instead of the handshake icon.

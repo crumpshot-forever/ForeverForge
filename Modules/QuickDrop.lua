@@ -13,7 +13,7 @@ if not FTK then
 end
 
 local MODULE_ID = "QuickDrop"
-local ICON = "Interface\\AddOns\\ForeverForge\\Textures\\QuickSwap"
+local ICON = "Interface\\AddOns\\ForeverForge\\Textures\\Minimap"
 
 local session = 0
 local moving = false
