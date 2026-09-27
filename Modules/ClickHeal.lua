@@ -10,9 +10,9 @@
   not used.
 ]]
 
-local FTK = ForeverToolkit
+local FTK = ForeverForge
 if not FTK then
-  error("ForeverToolkit: Core.lua must load before Modules/ClickHeal.lua")
+  error("ForeverForge: Core.lua must load before Modules/ClickHeal.lua")
 end
 
 local MODULE_ID = "ClickHeal"
@@ -644,7 +644,7 @@ local function EnsureOverlay(frame)
     return overlay
   end
   overlayCount = overlayCount + 1
-  local ok, created = pcall(CreateFrame, "Button", "ForeverToolkitClickHeal" .. overlayCount, UIParent, "SecureActionButtonTemplate")
+  local ok, created = pcall(CreateFrame, "Button", "ForeverForgeClickHeal" .. overlayCount, UIParent, "SecureActionButtonTemplate")
   if not ok or type(created) ~= "table" then
     return nil
   end

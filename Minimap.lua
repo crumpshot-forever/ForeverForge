@@ -3,9 +3,9 @@
   around the minimap; the angle is saved.
 ]]
 
-local FTK = ForeverToolkit
+local FTK = ForeverForge
 if not FTK then
-  error("ForeverToolkit: Core.lua must load before Minimap.lua")
+  error("ForeverForge: Core.lua must load before Minimap.lua")
 end
 
 local DEFAULT_ANGLE = 200
@@ -55,7 +55,7 @@ local function StopDrag(btn)
 end
 
 function FTK:CreateMinimapButton()
-  local btn = CreateFrame("Button", "ForeverToolkitMinimapButton", Minimap)
+  local btn = CreateFrame("Button", "ForeverForgeMinimapButton", Minimap)
   btn:SetSize(31, 31)
   btn:SetFrameStrata("MEDIUM")
   btn:SetFrameLevel(8)
@@ -158,7 +158,7 @@ function FTK:CreateMinimapButton()
     pcall(function()
       GameTooltip:SetOwner(self, "ANCHOR_LEFT")
       GameTooltip:ClearLines()
-      GameTooltip:SetText("Forever Toolkit")
+      GameTooltip:SetText("Forever Forge")
       GameTooltip:AddLine("Left-click to open the menu", 1, 1, 1)
       GameTooltip:AddLine("Drag to move this button", 0.75, 0.75, 0.75)
       GameTooltip:Show()
@@ -183,7 +183,7 @@ function FTK:InitMinimap()
     if not created or type(button) ~= "table" then
       if not self._minimapFailed then
         self._minimapFailed = true
-        self:Print("Could not create the minimap button. Use /ftk to open the menu.")
+        self:Print("Could not create the minimap button. Use /ff to open the menu.")
       end
       return
     end

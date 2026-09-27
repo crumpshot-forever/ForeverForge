@@ -5,9 +5,9 @@
   Uses the bank's own item buttons. A secret item id is left in General.
 ]]
 
-local FTK = ForeverToolkit
+local FTK = ForeverForge
 if not FTK or not FTK.CleanBagRules then
-  error("ForeverToolkit: BagSections.lua must load before Modules/CleanBank.lua")
+  error("ForeverForge: BagSections.lua must load before Modules/CleanBank.lua")
 end
 
 local Rules = FTK.CleanBagRules

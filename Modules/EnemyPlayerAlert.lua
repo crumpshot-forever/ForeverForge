@@ -16,9 +16,9 @@
   Nothing is sent to public chat.
 ]]
 
-local FTK = ForeverToolkit
+local FTK = ForeverForge
 if not FTK then
-  error("ForeverToolkit: Core.lua must load before Modules/EnemyPlayerAlert.lua")
+  error("ForeverForge: Core.lua must load before Modules/EnemyPlayerAlert.lua")
 end
 
 local MODULE_ID = "EnemyPlayerAlert"

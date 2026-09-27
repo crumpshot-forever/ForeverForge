@@ -8,9 +8,9 @@
   once the client will accept another loot.
 ]]
 
-local FTK = ForeverToolkit
+local FTK = ForeverForge
 if not FTK then
-  error("ForeverToolkit: Core.lua must load before Modules/QuickHands.lua")
+  error("ForeverForge: Core.lua must load before Modules/QuickHands.lua")
 end
 
 local MODULE_ID = "QuickHands"

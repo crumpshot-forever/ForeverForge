@@ -3,9 +3,9 @@
   Quest items are kept. Slots with a secret or missing item id are skipped.
 ]]
 
-local FTK = ForeverToolkit
+local FTK = ForeverForge
 if not FTK then
-  error("ForeverToolkit: Core.lua must load before Modules/AutoSellJunk.lua")
+  error("ForeverForge: Core.lua must load before Modules/AutoSellJunk.lua")
 end
 
 local MODULE_ID = "AutoSellJunk"

@@ -1,12 +1,12 @@
 --[[
-  Forever Toolkit
+  Forever Forge
   Master addon for independent in-game tools. This file is the registry,
   saved settings, and slash commands. It does not implement features.
 
-  Add a feature in its own file, listed after Menu.lua in ForeverToolkit.toc.
+  Add a feature in its own file, listed after Menu.lua in ForeverForge.toc.
   Call RegisterModule at file scope (not from inside onEnable):
 
-    ForeverToolkit:RegisterModule({
+    ForeverForge:RegisterModule({
       id = "BagSort",
       name = "Bag Sort",
       description = "Puts bags back in order.",
@@ -14,7 +14,7 @@
       onEnable = function(self)
         -- Runs on login, /reload, and when the player turns the feature on.
         -- GetConfig is safe from here on. Mutate the returned table; do not replace it.
-        local cfg = ForeverToolkit:GetConfig(self.id)
+        local cfg = ForeverForge:GetConfig(self.id)
       end,
       onDisable = function(self)
         -- Runs when the player turns the feature off. Not called on logout.
@@ -33,21 +33,21 @@
   compared, used as table keys, or formatted into logic.
 ]]
 
-local ADDON = "ForeverToolkit"
+local ADDON = "ForeverForge"
 
 local FTK = {}
-_G.ForeverToolkit = FTK
+_G.ForeverForge = FTK
 
 -- Addon version is X.Y.Z. The Interface lines in the toc are the game client.
 -- X stays 0 until the first public package, then 1. Raise X only when saved
 -- settings would break, or a new Forever client era is certified.
 -- Y goes up by 1 for a new toolkit feature, and Z returns to 0.
 -- Z goes up by 1 for a fix or small change, and Y stays.
--- Keep this string identical to ## Version in ForeverToolkit.toc.
+-- Keep this string identical to ## Version in ForeverForge.toc.
 -- When the version changes, also copy the addon into
--- Addons/releases/ForeverToolkit-X.Y.Z/ForeverToolkit/ for sharing.
+-- Addons/releases/ForeverForge-X.Y.Z/ForeverForge/ for sharing.
 -- Leave Marketing-Brief.md out of that copy. Do not move the live folder.
-FTK.VERSION = "1.0.0"
+FTK.VERSION = "1.0.1"
 FTK.modules = {}
 FTK.moduleOrder = {}
 
@@ -62,7 +62,7 @@ end
 function FTK:Print(msg)
   local chat = _G.DEFAULT_CHAT_FRAME
   if chat and chat.AddMessage then
-    chat:AddMessage("|cffe0c36aForever Toolkit|r: " .. self.Plain(msg))
+    chat:AddMessage("|cffe0c36aForever Forge|r: " .. self.Plain(msg))
   end
 end
 
@@ -70,7 +70,7 @@ function FTK:InitDB()
   if self._dbReady then
     return
   end
-  local db = _G.ForeverToolkitDB
+  local db = _G.ForeverForgeDB
   if type(db) ~= "table" then
     db = {}
   end
@@ -86,7 +86,7 @@ function FTK:InitDB()
   if type(db.modules) ~= "table" then
     db.modules = {}
   end
-  _G.ForeverToolkitDB = db
+  _G.ForeverForgeDB = db
   self.db = db
   self._dbReady = true
 end
@@ -232,9 +232,9 @@ function FTK:AddonVersion()
 end
 
 function FTK:PrintHelp()
-  self:Print("/ftk - open or close the menu")
-  self:Print("/ftk reset - move the minimap button back")
-  self:Print("/ftk modules - list features")
+  self:Print("/ff, /forge, or /foreverforge - open or close the menu")
+  self:Print("/ff reset - move the minimap button back")
+  self:Print("/ff modules - list features")
 end
 
 function FTK:OnSlash(msg)
@@ -331,10 +331,10 @@ events:SetScript("OnEvent", function(_, event, arg1)
   FTK:ApplyModuleStates()
 end)
 
-_G.SLASH_FOREVERTOOLKIT1 = "/ftk"
-_G.SLASH_FOREVERTOOLKIT2 = "/toolkit"
-_G.SLASH_FOREVERTOOLKIT3 = "/forevertoolkit"
+_G.SLASH_FOREVERFORGE1 = "/ff"
+_G.SLASH_FOREVERFORGE2 = "/forge"
+_G.SLASH_FOREVERFORGE3 = "/foreverforge"
 _G.SlashCmdList = _G.SlashCmdList or {}
-_G.SlashCmdList.FOREVERTOOLKIT = function(msg)
+_G.SlashCmdList.FOREVERFORGE = function(msg)
   FTK:OnSlash(msg)
 end

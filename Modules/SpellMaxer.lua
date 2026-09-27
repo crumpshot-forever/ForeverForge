@@ -9,9 +9,9 @@
   See ../FlowRider/docs/Forever-API-visibility.md.
 ]]
 
-local FTK = ForeverToolkit
+local FTK = ForeverForge
 if not FTK then
-  error("ForeverToolkit: Core.lua must load before Modules/SpellMaxer.lua")
+  error("ForeverForge: Core.lua must load before Modules/SpellMaxer.lua")
 end
 
 local MODULE_ID = "SpellMaxer"

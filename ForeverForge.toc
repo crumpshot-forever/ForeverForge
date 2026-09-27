@@ -1,12 +1,12 @@
 ## Interface: 120100, 120000, 16001
 ## Interface-Retail: 120100
 ## Interface-Camelot: 16001
-## Title: Forever Toolkit
+## Title: Forever Forge
 ## Notes: Menu and minimap button for independent in-game tools.
-## Author: Forever Toolkit
-## Version: 1.0.0
+## Author: Forever Forge
+## Version: 1.0.1
 ## IconTexture: Interface\Icons\INV_Misc_Wrench_01
-## SavedVariables: ForeverToolkitDB
+## SavedVariables: ForeverForgeDB
 
 Core.lua
 Minimap.lua

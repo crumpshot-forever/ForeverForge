@@ -3,9 +3,9 @@
   when the feature defines one, a Configure button.
 ]]
 
-local FTK = ForeverToolkit
+local FTK = ForeverForge
 if not FTK then
-  error("ForeverToolkit: Core.lua must load before Menu.lua")
+  error("ForeverForge: Core.lua must load before Menu.lua")
 end
 
 local Menu = {}
@@ -18,8 +18,8 @@ local ROW_H = 58
 local ROW_GAP = 8
 local ROW_W = BODY_W - 22
 
-local LIST_TITLE = "Forever Toolkit"
-local LIST_SUB = "v" .. ForeverToolkit:AddonVersion() .. ". Enable, disable, and configure each tool."
+local LIST_TITLE = "Forever Forge"
+local LIST_SUB = "v" .. ForeverForge:AddonVersion() .. ". Enable, disable, and configure each tool."
 
 local function WithBackdrop(frame, bgR, bgG, bgB, bgA, edgeR, edgeG, edgeB, edgeA)
   if not frame.SetBackdrop then
@@ -295,7 +295,7 @@ function Menu.Refresh()
     end
   end
   if Menu.footer then
-    Menu.footer:SetText(string.format("v%s   |   %d features   |   /ftk   |   forever.tigerforge.io", FTK:AddonVersion(), count))
+    Menu.footer:SetText(string.format("v%s   |   %d features   |   /ff   |   forever.tigerforge.io", FTK:AddonVersion(), count))
   end
 end
 
@@ -383,7 +383,7 @@ function Menu.Ensure()
     return Menu.frame
   end
 
-  local frame = MakeFrame("ForeverToolkitMenuFrame", UIParent, FRAME_W, FRAME_H)
+  local frame = MakeFrame("ForeverForgeMenuFrame", UIParent, FRAME_W, FRAME_H)
   frame:Hide()
   frame:SetFrameStrata("DIALOG")
   frame:SetToplevel(true)
@@ -396,7 +396,7 @@ function Menu.Ensure()
   Menu.configPages = {}
 
   if type(UISpecialFrames) == "table" then
-    table.insert(UISpecialFrames, "ForeverToolkitMenuFrame")
+    table.insert(UISpecialFrames, "ForeverForgeMenuFrame")
   end
 
   local drag = CreateFrame("Frame", nil, frame)
@@ -500,7 +500,7 @@ function Menu.Ensure()
   Menu.back = back
 
   local scroll
-  local scrollOk, scrollFrame = pcall(CreateFrame, "ScrollFrame", "ForeverToolkitMenuScroll", body, "UIPanelScrollFrameTemplate")
+  local scrollOk, scrollFrame = pcall(CreateFrame, "ScrollFrame", "ForeverForgeMenuScroll", body, "UIPanelScrollFrameTemplate")
   if scrollOk and type(scrollFrame) == "table" then
     scroll = scrollFrame
   else
@@ -536,7 +536,7 @@ function Menu.Ensure()
   Menu.configHost = configHost
 
   local configScroll
-  local cfgOk, cfgCreated = pcall(CreateFrame, "ScrollFrame", "ForeverToolkitConfigScroll", configHost, "UIPanelScrollFrameTemplate")
+  local cfgOk, cfgCreated = pcall(CreateFrame, "ScrollFrame", "ForeverForgeConfigScroll", configHost, "UIPanelScrollFrameTemplate")
   if cfgOk and type(cfgCreated) == "table" then
     configScroll = cfgCreated
   else

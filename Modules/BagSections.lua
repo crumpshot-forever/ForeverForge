@@ -8,9 +8,9 @@
   keep working. A secret item id is left in General.
 ]]
 
-local FTK = ForeverToolkit
+local FTK = ForeverForge
 if not FTK then
-  error("ForeverToolkit: Core.lua must load before Modules/BagSections.lua")
+  error("ForeverForge: Core.lua must load before Modules/BagSections.lua")
 end
 
 local MODULE_ID = "BagSections"

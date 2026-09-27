@@ -4,9 +4,9 @@ Forever Forge is one addon with a set of light-weight tools for WoW: Forever. Ea
 
 The tools sit on the normal bags, bank, loot window, party frames, and tooltips. They do not replace those screens.
 
-Open the menu with the minimap wrench, or type `/ftk`.
+Open the menu with the minimap wrench, or type `/ff`, `/forge`, or `/foreverforge`.
 
-This build installs as a folder named `ForeverToolkit`. Do not rename that folder. The in-game menu still says Forever Toolkit. The public name is Forever Forge.
+Install the folder named `ForeverForge`. Do not rename that folder. Remove any older `ForeverToolkit` folder so the game does not load both. The menu title is Forever Forge, and chat lines start with `Forever Forge:`. Saved settings from the older folder do not carry over.
 
 Chat lines from these tools stay in your own chat window. They are not sent to say, party, or guild chat.
 
@@ -88,7 +88,7 @@ It checks when you log in or reload, when you enter an area, and when your group
 
 When an enemy player comes into nameplate range, you hear a short sound and get one local line:
 
-`Forever Toolkit: Crump Crump <Guild Name> - 20 human mage detected!`
+`Forever Forge: Crump Crump <Guild Name> - 20 human mage detected!`
 
 The guild name is included in angle brackets when the game provides it. If there is no guild, or the name is hidden, the brackets are left off.
 
@@ -116,7 +116,7 @@ The same binding list appears on the party or raid frame tooltip.
 - Public chat is never used.
 - Bind-on-pickup prompts are never clicked for you.
 - Friendly health is not drawn on a separate bar. Click Heal uses the frames already on screen.
-- The install folder for this build is `ForeverToolkit`.
+- The install folder for this build is `ForeverForge`.
 
 Source and changelog: https://github.com/crumpshot-forever/ForeverForge
 

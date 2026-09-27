@@ -7,9 +7,9 @@
   type is only read. Nothing writes BankPanel.bankType.
 ]]
 
-local FTK = ForeverToolkit
+local FTK = ForeverForge
 if not FTK then
-  error("ForeverToolkit: Core.lua must load before Modules/QuickDrop.lua")
+  error("ForeverForge: Core.lua must load before Modules/QuickDrop.lua")
 end
 
 local MODULE_ID = "QuickDrop"

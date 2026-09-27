@@ -11,9 +11,9 @@
   or used as a table key. See ../FlowRider/docs/Forever-API-visibility.md.
 ]]
 
-local FTK = ForeverToolkit
+local FTK = ForeverForge
 if not FTK then
-  error("ForeverToolkit: Core.lua must load before Modules/SpellIdTooltip.lua")
+  error("ForeverForge: Core.lua must load before Modules/SpellIdTooltip.lua")
 end
 
 local MODULE_ID = "SpellIdTooltip"

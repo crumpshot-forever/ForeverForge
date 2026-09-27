@@ -2,19 +2,20 @@
 
 One menu of light-weight tools for WoW: Forever. Each tool has its own on/off switch. The normal bags, bank, loot window, party frames, and tooltips stay in place.
 
-Current version: **1.0.0**. This is the first public package.
+Current version: **1.0.1**.
 
-The public name is Forever Forge. This build still installs as the folder `ForeverToolkit`, and the in-game menu still says Forever Toolkit. That name change inside the game is the next update.
-
-Open the menu with the minimap wrench, or type `/ftk`.
+Open the menu with the minimap wrench, or type `/ff`, `/forge`, or `/foreverforge`.
 
 ## Install
 
-1. Download this repository and keep the folder named `ForeverToolkit`.
-2. Put that folder in `Interface\AddOns`.
-3. Restart the game. The toolkit window should show `v1.0.0`.
+1. Download this repository and keep the folder named `ForeverForge`.
+2. Remove any older `ForeverToolkit` folder from `Interface\AddOns`. The game would load both.
+3. Put `ForeverForge` in `Interface\AddOns`.
+4. Restart the game. The menu should show `v1.0.1`.
 
-Do not rename the folder. The game only loads it as `ForeverToolkit`.
+Do not rename the folder. The game only loads it when the folder name matches `ForeverForge.toc`.
+
+Saved settings from the older folder do not carry over. Turn each tool on again after the first login with this version.
 
 ## Tools
 
@@ -28,7 +29,7 @@ Do not rename the folder. The game only loads it as `ForeverToolkit`.
 - **Enemy Player Alert.** A short sound and a local line for an enemy player in nameplate range. A guild name is included when the game provides it. The same character is skipped for 1 minute.
 - **Click Heal.** For a Priest, Druid, Paladin, or Shaman, modified clicks on party and raid frames cast heals. Your own character frame is left alone.
 
-Chat lines from these tools stay in your own chat window. This build still starts them with `Forever Toolkit:`.
+Chat lines from these tools stay in your own chat window and start with `Forever Forge:`.
 
 ## Version
 
