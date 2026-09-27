@@ -44,3 +44,7 @@ See [CHANGELOG.md](CHANGELOG.md).
 ## License
 
 [MIT](LICENSE). Copyright (c) 2026 crumpshot-forever.
+
+## Support
+
+Forever Forge is free, including every future update. If it saves you time, you can leave a tip: https://ko-fi.com/crumpshot

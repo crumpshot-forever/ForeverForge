@@ -121,3 +121,5 @@ The same binding list appears on the party or raid frame tooltip.
 Source and changelog: https://github.com/crumpshot-forever/ForeverForge
 
 License: MIT
+
+Forever Forge is free, including every future update. If it saves you time, you can leave a tip: https://ko-fi.com/crumpshot
