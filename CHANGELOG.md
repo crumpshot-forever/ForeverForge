@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.7
+
+- Quest items that you collect, such as Bristleback Quilboar Tusks, show the quest name on the item tooltip.
+
 ## 1.0.6
 
 - The menu footer points to the Forever Forge page and no longer shows the feature count.

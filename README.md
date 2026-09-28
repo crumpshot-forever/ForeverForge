@@ -2,7 +2,7 @@
 
 One menu of light-weight tools for WoW: Forever. Each tool has its own on/off switch. The normal bags, bank, loot window, party frames, and tooltips stay in place.
 
-Current version: **1.0.6**.
+Current version: **1.0.7**.
 
 Open the menu with the minimap button, or type `/ff`, `/forge`, or `/foreverforge`.
 
@@ -10,7 +10,7 @@ Open the menu with the minimap button, or type `/ff`, `/forge`, or `/foreverforg
 
 1. Download this repository and keep the folder named `ForeverForge`.
 2. Put `ForeverForge` in `Interface\AddOns`.
-3. Restart the game. The menu should show `v1.0.6`.
+3. Restart the game. The menu should show `v1.0.7`.
 
 Do not rename the folder. The game only loads it when the folder name matches `ForeverForge.toc`.
 
