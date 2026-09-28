@@ -46,7 +46,7 @@ _G.ForeverForge = FTK
 -- Keep this string identical to ## Version in ForeverForge.toc.
 -- Publish a version by committing it and tagging vX.Y.Z on GitHub.
 -- Do not rename the live ForeverForge folder.
-FTK.VERSION = "1.0.7"
+FTK.VERSION = "1.0.8"
 FTK.modules = {}
 FTK.moduleOrder = {}
 

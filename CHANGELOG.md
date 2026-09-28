@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.8
+
+- No feature changes. This release checks that CurseForge receives a new tag on its own.
+
 ## 1.0.7
 
 - Quest items that you collect, such as Bristleback Quilboar Tusks, show the quest name on the item tooltip.
