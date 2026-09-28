@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Forever Forge</title>
+  <meta name="description" content="Light-weight tools for WoW: Forever. Bags, bank, loot, tooltips, and party healing. Free, with a way to support the work.">
+  <style>
+    :root {
+      --bg: #0b0a09;
+      --bg-2: #161310;
+      --panel: #1c1814;
+      --line: rgba(232, 197, 106, 0.35);
+      --gold: #e8c56a;
+      --gold-deep: #b8893e;
+      --text: #f4ecdf;
+      --muted: #cbbfaa;
+      --max: 1040px;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--text);
+      background:
+        radial-gradient(1200px 500px at 50% -10%, rgba(184, 137, 62, 0.18), transparent 60%),
+        var(--bg);
+      font-family: "Segoe UI", Candara, sans-serif;
+      font-size: 1.05rem;
+      line-height: 1.55;
+    }
+    a { color: var(--gold); }
+    a:hover { color: #fff3cc; }
+    img { max-width: 100%; height: auto; }
+    .wrap { width: min(var(--max), calc(100% - 32px)); margin: 0 auto; }
+    header.hero { padding: 48px 0 12px; text-align: center; }
+    .logo { width: min(640px, 100%); filter: drop-shadow(0 18px 40px rgba(0, 0, 0, 0.55)); }
+    .lede { max-width: 40rem; margin: 8px auto 0; color: var(--muted); font-size: 1.15rem; }
+    .actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin: 28px 0 8px; }
+    .btn {
+      display: inline-block;
+      padding: 12px 18px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      text-decoration: none;
+      color: var(--text);
+      background: rgba(232, 197, 106, 0.08);
+    }
+    .btn.solid {
+      background: linear-gradient(180deg, #f0d48a, #c49645);
+      color: #1a1208;
+      font-weight: 700;
+      border-color: transparent;
+    }
+    .btn:focus-visible, .donate-link:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
+    .support {
+      margin: 36px auto;
+      padding: 28px 22px 22px;
+      text-align: center;
+      background:
+        linear-gradient(180deg, rgba(232, 197, 106, 0.08), rgba(232, 197, 106, 0.02)),
+        var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+    }
+    .support h2 { margin: 0 0 8px; font-family: Georgia, "Palatino Linotype", serif; font-weight: 500; letter-spacing: 0.02em; }
+    .support p { margin: 0 auto 16px; max-width: 38rem; color: var(--muted); }
+    .donate-link { display: inline-block; text-decoration: none; }
+    .donate-link img { width: min(360px, 100%); }
+    .url { display: block; margin-top: 8px; color: var(--gold); }
+    .shot { display: block; margin: 28px auto; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.08); }
+    .shot.menu { width: min(420px, 100%); }
+    .shot.wide { width: min(720px, 100%); }
+    .shot.bag { width: min(480px, 100%); }
+    section.feature { padding: 18px 0 8px; }
+    section.feature h2 {
+      margin: 0 0 8px;
+      font-family: Georgia, "Palatino Linotype", serif;
+      font-size: 1.8rem;
+      font-weight: 500;
+      color: var(--gold);
+    }
+    section.feature p { margin: 0 0 12px; max-width: 44rem; }
+    .plain { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin: 12px 0 28px; }
+    .plain article {
+      padding: 18px 18px 8px;
+      background: var(--bg-2);
+      border-top: 2px solid var(--gold-deep);
+    }
+    .plain h2 { font-size: 1.35rem; }
+    footer {
+      margin-top: 20px;
+      padding: 28px 0 48px;
+      color: var(--muted);
+      text-align: center;
+      border-top: 1px solid rgba(232, 197, 106, 0.2);
+    }
+    code { color: var(--gold); }
+    @media (max-width: 720px) {
+      .plain { grid-template-columns: 1fr; }
+      header.hero { padding-top: 28px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="hero">
+    <div class="wrap">
+      <img class="logo" src="images/logo.jpg" alt="Forever Forge">
+      <p class="lede">One addon of light-weight tools for WoW: Forever. Open it from the anvil on your minimap, or type <code>/ff</code>, <code>/forge</code>, or <code>/foreverforge</code>.</p>
+      <div class="actions">
+        <a class="btn solid" href="#support">Support the forge</a>
+        <a class="btn" href="https://addons.wago.io/addons/foreverforge">Get it on Wago</a>
+        <a class="btn" href="https://www.curseforge.com/wow/addons/forever-forge">CurseForge</a>
+      </div>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <section class="support" id="support">
+      <h2>Free to use. Worth supporting.</h2>
+      <p>Forever Forge is free, including every future update. If you've enjoyed this addon, please leave a donation and tell your friends.</p>
+      <a class="donate-link" href="https://ko-fi.com/crumpshot">
+        <img src="images/donate.png" alt="Donate">
+        <span class="url">https://ko-fi.com/crumpshot</span>
+      </a>
+    </section>
+
+    <p>Every tool has its own switch. Turn one off and the rest keep working. Your choices are remembered. Your bags, bank, loot window, party frames, and tooltips stay the ones you already use. Forever Forge only adds the help on top.</p>
+    <img class="shot menu" src="images/menu.png" alt="The Forever Forge menu, with a switch for each tool">
+
+    <section class="feature">
+      <h2>Clean Bags</h2>
+      <img class="shot bag" src="images/clean-bags.png" alt="Combined backpack sorted into labeled sections">
+      <p>Open your backpack and it is already sorted. Quest items, food and potions, reagents, crafting materials, saved equipment sets, gear, everyday items, junk, and empty slots each get their own labeled group, with a count on the label. You spend less time hunting and more time playing.</p>
+    </section>
+
+    <section class="feature">
+      <h2>Clean Bank</h2>
+      <img class="shot bag" src="images/clean-bank.png" alt="Bank sorted into the same labeled sections">
+      <p>Your bank uses that same order, on its own switch. Find a reagent, a piece of a set, or an empty slot without scrolling through a mixed pile. The bank search box stays right where you expect it.</p>
+    </section>
+
+    <section class="feature">
+      <h2>Quick Swap</h2>
+      <img class="shot wide" src="images/quick-swap.png" alt="The Forever Forge button on a Crafting section">
+      <p>While the bank is open, every filled group in your bags and in the bank gets the Forever Forge button. One click sends that whole group the other way. Stock the bank, or pull a set back out, without dragging item by item. Your hearthstone stays in your bags.</p>
+    </section>
+
+    <section class="feature">
+      <h2>ID Tooltips</h2>
+      <img class="shot" src="images/id-tooltips.png" alt="A buff tooltip showing its spell ID" style="width:min(420px,100%)">
+      <p>Hover anything and see the ID you actually need. Spells, items, creatures, quests, buffs, and debuffs each show theirs. Quest items in your bags or bank can also name the quest they belong to.</p>
+    </section>
+
+    <section class="feature">
+      <h2>SpellMaxer</h2>
+      <img class="shot wide" src="images/spellmaxer.png" alt="SpellMaxer chat line about a lower rank of Healing Touch">
+      <p>A weaker rank left on your bars is easy to miss. SpellMaxer checks your own action bars and tells you, in your chat window: <code>Hey, &lt;name&gt;, you aren't Spellmaxing to the MAX! You're using a lower level of &lt;spell&gt;! Check yoself!</code></p>
+      <p>It looks again when you log in, when you enter a new area, and when your group changes.</p>
+    </section>
+
+    <div class="plain">
+      <article>
+        <h2>Auto-sell junk</h2>
+        <p>Open a vendor and the grey junk sells itself. Quest items stay with you. Anything a merchant will not buy stays with you. Walk away from the shop and the selling stops.</p>
+      </article>
+      <article>
+        <h2>Ninjee Loot</h2>
+        <p>Loot the whole corpse in one go. When auto-loot is on, opening a body takes everything. Hold your auto-loot key if you want that corpse to stay a normal window. When auto-loot is off, loot stays manual until you hold the key. Bind-on-pickup questions still wait for your answer.</p>
+      </article>
+      <article>
+        <h2>Enemy Player Alert</h2>
+        <p>An enemy player steps into range, you hear a short sound, and your chat window names them: <code>Forever Forge: Name &lt;Guild&gt; - 20 human mage detected!</code></p>
+        <p>The guild is shown when you can see it. The same person stays quiet for one minute, so a crowded road does not shout forever.</p>
+      </article>
+      <article>
+        <h2>Click Heal</h2>
+        <p>For healers, use your mouse clicks on party and raid frames to quickly cast your heals. They keep working in combat.</p>
+        <p>Your own portrait stays a normal portrait, so you can still leave the party. A plain left click still targets, and a plain right click still opens the player menu, until you decide otherwise.</p>
+        <p>Open Configure to see what each click will cast. Type a spell and press Enter to choose a different one. Leave the box empty to keep the spell already shown. Type <code>none</code> and press Enter to clear that click.</p>
+      </article>
+    </div>
+
+    <section class="support">
+      <h2>Keep the forge lit</h2>
+      <p>Forever Forge is free, including every future update. If you've enjoyed this addon, please leave a donation and tell your friends.</p>
+      <a class="donate-link" href="https://ko-fi.com/crumpshot">
+        <img src="images/donate.png" alt="Donate on Ko-fi">
+        <span class="url">https://ko-fi.com/crumpshot</span>
+      </a>
+    </section>
+  </div>
+
+  <footer>
+    <div class="wrap">
+      <p>Install the folder named <code>ForeverForge</code> and leave that name as it is. The menu title is Forever Forge. Messages from the tools appear in your own chat window.</p>
+      <p>
+        <a href="https://github.com/crumpshot-forever/ForeverForge">Source and changelog</a>
+        · <a href="https://addons.wago.io/addons/foreverforge">Wago</a>
+        · <a href="https://www.curseforge.com/wow/addons/forever-forge">CurseForge</a>
+        · MIT license
+      </p>
+    </div>
+  </footer>
+</body>
+</html>
