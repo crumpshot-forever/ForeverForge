@@ -295,7 +295,7 @@ function Menu.Refresh()
     end
   end
   if Menu.footer then
-    Menu.footer:SetText(string.format("v%s   |   %d features   |   /ff   |   forever.tigerforge.io", FTK:AddonVersion(), count))
+    Menu.footer:SetText(string.format("v%s | %d features | /ff | crumpshot-forever.github.io/ForeverForge", FTK:AddonVersion(), count))
   end
 end
 
