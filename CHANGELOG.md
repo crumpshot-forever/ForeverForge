@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.6
+
+- The menu footer points to the Forever Forge page and no longer shows the feature count.
+
 ## 1.0.5
 
 - Quick Swap uses the Forever Forge anvil icon.
