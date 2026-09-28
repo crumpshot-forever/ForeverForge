@@ -494,6 +494,92 @@ local function IsItemObjective(kind)
   return false
 end
 
+local function PlainName(value)
+  if IsSecret(value) or type(value) ~= "string" or value == "" then
+    return nil
+  end
+  return value
+end
+
+local function ItemIdByName(name)
+  name = PlainName(name)
+  if not name or not GetItemInfo then
+    return nil
+  end
+  local ok, _, link = pcall(GetItemInfo, name)
+  if not ok then
+    return nil
+  end
+  return IdFromItemLink(link)
+end
+
+local function ItemNameById(itemId)
+  if C_Item and C_Item.GetItemNameByID then
+    local ok, name = pcall(C_Item.GetItemNameByID, itemId)
+    name = ok and PlainName(name) or nil
+    if name then
+      return name
+    end
+  end
+  if not GetItemInfo then
+    return nil
+  end
+  local ok, name = pcall(GetItemInfo, itemId)
+  if not ok then
+    return nil
+  end
+  return PlainName(name)
+end
+
+-- Collect objectives name the item in the text, often with no item id.
+-- "Bristleback Quilboar Tusk: 19/60" and "19/60 Bristleback Quilboar Tusk".
+local function ItemIdFromObjectiveText(text)
+  if IsSecret(text) or type(text) ~= "string" or text == "" then
+    return nil
+  end
+  text = text:gsub("^%s*%-%s*", "")
+  local names = { text }
+  local stripped = text:match("^(.-):%s*%d+/%d+")
+  if stripped and stripped ~= "" then
+    names[#names + 1] = stripped
+  end
+  stripped = text:match("^%d+/%d+%s+(.+)$")
+  if stripped and stripped ~= "" then
+    names[#names + 1] = stripped
+  end
+  local index
+  for index = 1, #names do
+    local itemId = ItemIdByName(names[index])
+    if itemId then
+      return itemId
+    end
+  end
+  return nil
+end
+
+local function ObjectiveNamesItem(text, itemName)
+  if IsSecret(text) or type(text) ~= "string" or text == "" or not itemName then
+    return false
+  end
+  text = text:gsub("^%s*%-%s*", "")
+  if text == itemName then
+    return true
+  end
+  if text:sub(1, #itemName) == itemName then
+    local rest = text:sub(#itemName + 1)
+    if rest:match("^:%s*%d+/%d+") or rest:match("^%s+%d+/%d+") then
+      return true
+    end
+  end
+  if text:sub(-#itemName) == itemName then
+    local lead = text:sub(1, #text - #itemName)
+    if lead:match("^%d+/%d+%s+$") then
+      return true
+    end
+  end
+  return false
+end
+
 local function RememberObjectiveItems(questId, title)
   if not (C_QuestLog and C_QuestLog.GetQuestObjectives) then
     return
@@ -511,6 +597,7 @@ local function RememberObjectiveItems(questId, title)
       if IsItemObjective(objective.type) then
         RememberItemQuest(objective.assetID, questId, title)
       end
+      RememberItemQuest(ItemIdFromObjectiveText(objective.text), questId, title)
     end
   end
 end
@@ -555,16 +642,19 @@ local function SelectedLogIndex()
 end
 
 local function SelectLogQuest(questId, logIndex)
+  local selected = false
   if questId and C_QuestLog and C_QuestLog.SetSelectedQuest then
-    local ok = pcall(C_QuestLog.SetSelectedQuest, questId)
-    if ok then
-      return true
+    if pcall(C_QuestLog.SetSelectedQuest, questId) then
+      selected = true
     end
   end
+  -- GetQuestLogItemLink reads the classic log selection, not SetSelectedQuest.
   if logIndex and SelectQuestLogEntry then
-    return pcall(SelectQuestLogEntry, logIndex)
+    if pcall(SelectQuestLogEntry, logIndex) then
+      selected = true
+    end
   end
-  return false
+  return selected
 end
 
 local function RestoreLogSelection(questId, logIndex)
@@ -712,6 +802,26 @@ local function AppendQuestName(tooltip, itemId)
     else
       RequestTitle(slotQuest)
       pendingQuest[tooltip] = slotQuest
+    end
+  end
+  if itemId and questsByItem and not questsByItem[itemId] then
+    local itemName = ItemNameById(itemId)
+    local count = LogCount()
+    local scan
+    for scan = 1, count do
+      local questId, title = ReadLogEntry(scan)
+      if questId and title and C_QuestLog and C_QuestLog.GetQuestObjectives then
+        local ok, objectives = pcall(C_QuestLog.GetQuestObjectives, questId)
+        if ok and type(objectives) == "table" then
+          local objIndex
+          for objIndex = 1, #objectives do
+            local objective = objectives[objIndex]
+            if type(objective) == "table" and ObjectiveNamesItem(objective.text, itemName) then
+              RememberItemQuest(itemId, questId, title)
+            end
+          end
+        end
+      end
     end
   end
   if itemId and questsByItem and questsByItem[itemId] then
