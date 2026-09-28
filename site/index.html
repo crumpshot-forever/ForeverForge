@@ -15,7 +15,7 @@
       --gold-deep: #b8893e;
       --text: #f4ecdf;
       --muted: #cbbfaa;
-      --max: 1040px;
+      --max: 640px;
     }
     * { box-sizing: border-box; }
     html { scroll-behavior: smooth; }
@@ -32,7 +32,7 @@
     a { color: var(--gold); }
     a:hover { color: #fff3cc; }
     img { max-width: 100%; height: auto; }
-    .wrap { width: min(var(--max), calc(100% - 32px)); margin: 0 auto; }
+    .wrap { width: min(var(--max), calc(100% - 32px)); margin: 0 auto; text-align: center; }
     header.hero { padding: 48px 0 12px; text-align: center; }
     .logo { width: min(640px, 100%); filter: drop-shadow(0 18px 40px rgba(0, 0, 0, 0.55)); }
     .lede { max-width: 40rem; margin: 8px auto 0; color: var(--muted); font-size: 1.15rem; }
@@ -68,11 +68,16 @@
     .donate-link { display: inline-block; text-decoration: none; }
     .donate-link img { width: min(360px, 100%); }
     .url { display: block; margin-top: 8px; color: var(--gold); }
-    .shot { display: block; margin: 18px 0 22px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.08); }
-    .shot.menu { width: min(420px, 100%); }
-    .shot.wide { width: min(720px, 100%); }
-    .shot.bag { width: min(480px, 100%); }
-    section.feature { padding: 18px 0 8px; }
+    .shot { display: block; width: 100%; margin: 18px auto 22px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.08); }
+    .rule {
+      width: 100%;
+      height: 2px;
+      margin: 28px auto;
+      border: 0;
+      background: linear-gradient(90deg, transparent, var(--gold) 20%, var(--gold) 80%, transparent);
+      box-shadow: 0 0 14px rgba(232, 197, 106, 0.45);
+    }
+    section.feature { padding: 8px 0; }
     section.feature h2 {
       margin: 0 0 8px;
       font-family: Georgia, "Palatino Linotype", serif;
@@ -80,14 +85,7 @@
       font-weight: 500;
       color: var(--gold);
     }
-    section.feature p { margin: 0 0 12px; max-width: 44rem; }
-    .plain { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin: 12px 0 28px; }
-    .plain article {
-      padding: 18px 18px 8px;
-      background: var(--bg-2);
-      border-top: 2px solid var(--gold-deep);
-    }
-    .plain h2 { font-size: 1.35rem; }
+    section.feature p { margin: 0 auto 12px; max-width: 36rem; }
     footer {
       margin-top: 20px;
       padding: 28px 0 48px;
@@ -97,7 +95,6 @@
     }
     code { color: var(--gold); }
     @media (max-width: 720px) {
-      .plain { grid-template-columns: 1fr; }
       header.hero { padding-top: 28px; }
     }
   </style>
@@ -126,60 +123,81 @@
     </section>
 
     <p>Every tool has its own switch. Turn one off and the rest keep working. Your choices are remembered. Your bags, bank, loot window, party frames, and tooltips stay the ones you already use. Forever Forge only adds the help on top.</p>
-    <img class="shot menu" src="images/menu.png" alt="The Forever Forge menu, with a switch for each tool">
+    <img class="shot" src="images/menu.png" alt="The Forever Forge menu, with a switch for each tool">
+
+    <hr class="rule">
 
     <section class="feature">
       <h2>Clean Bags</h2>
-      <img class="shot bag" src="images/clean-bags.png" alt="Combined backpack sorted into labeled sections">
+      <img class="shot" src="images/clean-bags.png" alt="Combined backpack sorted into labeled sections">
       <p>Open your backpack and it is already sorted. Quest items, food and potions, reagents, crafting materials, saved equipment sets, gear, everyday items, junk, and empty slots each get their own labeled group, with a count on the label. You spend less time hunting and more time playing.</p>
     </section>
 
+    <hr class="rule">
+
     <section class="feature">
       <h2>Clean Bank</h2>
-      <img class="shot bag" src="images/clean-bank.png" alt="Bank sorted into the same labeled sections">
+      <img class="shot" src="images/clean-bank.png" alt="Bank sorted into the same labeled sections">
       <p>Your bank uses that same order, on its own switch. Find a reagent, a piece of a set, or an empty slot without scrolling through a mixed pile. The bank search box stays right where you expect it.</p>
     </section>
 
+    <hr class="rule">
+
     <section class="feature">
       <h2>Quick Swap</h2>
-      <img class="shot wide" src="images/quick-swap.png" alt="The Forever Forge button on a Crafting section">
+      <img class="shot" src="images/quick-swap.png" alt="The Forever Forge button on a Crafting section">
       <p>While the bank is open, every filled group in your bags and in the bank gets the Forever Forge button. One click sends that whole group the other way. Stock the bank, or pull a set back out, without dragging item by item. Your hearthstone stays in your bags.</p>
     </section>
 
+    <hr class="rule">
+
     <section class="feature">
       <h2>ID Tooltips</h2>
-      <img class="shot" src="images/id-tooltips.png" alt="A buff tooltip showing its spell ID" style="width:min(420px,100%)">
+      <img class="shot" src="images/id-tooltips.png" alt="A buff tooltip showing its spell ID">
       <p>Hover anything and see the ID you actually need. Spells, items, creatures, quests, buffs, and debuffs each show theirs. Quest items in your bags or bank can also name the quest they belong to.</p>
     </section>
 
+    <hr class="rule">
+
     <section class="feature">
       <h2>SpellMaxer</h2>
-      <img class="shot wide" src="images/spellmaxer.png" alt="SpellMaxer chat line about a lower rank of Healing Touch">
+      <img class="shot" src="images/spellmaxer.png" alt="SpellMaxer chat line about a lower rank of Healing Touch">
       <p>A weaker rank left on your bars is easy to miss. SpellMaxer checks your own action bars and tells you, in your chat window: <code>Hey, &lt;name&gt;, you aren't Spellmaxing to the MAX! You're using a lower level of &lt;spell&gt;! Check yoself!</code></p>
       <p>It looks again when you log in, when you enter a new area, and when your group changes.</p>
     </section>
 
-    <div class="plain">
-      <article>
-        <h2>Auto-sell junk</h2>
-        <p>Open a vendor and the grey junk sells itself. Quest items stay with you. Anything a merchant will not buy stays with you. Walk away from the shop and the selling stops.</p>
-      </article>
-      <article>
-        <h2>Ninjee Loot</h2>
-        <p>Loot the whole corpse in one go. When auto-loot is on, opening a body takes everything. Hold your auto-loot key if you want that corpse to stay a normal window. When auto-loot is off, loot stays manual until you hold the key. Bind-on-pickup questions still wait for your answer.</p>
-      </article>
-      <article>
-        <h2>Enemy Player Alert</h2>
-        <p>An enemy player steps into range, you hear a short sound, and your chat window names them: <code>Forever Forge: Name &lt;Guild&gt; - 20 human mage detected!</code></p>
-        <p>The guild is shown when you can see it. The same person stays quiet for one minute, so a crowded road does not shout forever.</p>
-      </article>
-      <article>
-        <h2>Click Heal</h2>
-        <p>For healers, use your mouse clicks on party and raid frames to quickly cast your heals. They keep working in combat.</p>
-        <p>Your own portrait stays a normal portrait, so you can still leave the party. A plain left click still targets, and a plain right click still opens the player menu, until you decide otherwise.</p>
-        <p>Open Configure to see what each click will cast. Type a spell and press Enter to choose a different one. Leave the box empty to keep the spell already shown. Type <code>none</code> and press Enter to clear that click.</p>
-      </article>
-    </div>
+    <hr class="rule">
+
+    <section class="feature">
+      <h2>Auto-sell junk</h2>
+      <p>Open a vendor and the grey junk sells itself. Quest items stay with you. Anything a merchant will not buy stays with you. Walk away from the shop and the selling stops.</p>
+    </section>
+
+    <hr class="rule">
+
+    <section class="feature">
+      <h2>Ninjee Loot</h2>
+      <p>Loot the whole corpse in one go. When auto-loot is on, opening a body takes everything. Hold your auto-loot key if you want that corpse to stay a normal window. When auto-loot is off, loot stays manual until you hold the key. Bind-on-pickup questions still wait for your answer.</p>
+    </section>
+
+    <hr class="rule">
+
+    <section class="feature">
+      <h2>Enemy Player Alert</h2>
+      <p>An enemy player steps into range, you hear a short sound, and your chat window names them: <code>Forever Forge: Name &lt;Guild&gt; - 20 human mage detected!</code></p>
+      <p>The guild is shown when you can see it. The same person stays quiet for one minute, so a crowded road does not shout forever.</p>
+    </section>
+
+    <hr class="rule">
+
+    <section class="feature">
+      <h2>Click Heal</h2>
+      <p>For healers, use your mouse clicks on party and raid frames to quickly cast your heals. They keep working in combat.</p>
+      <p>Your own portrait stays a normal portrait, so you can still leave the party. A plain left click still targets, and a plain right click still opens the player menu, until you decide otherwise.</p>
+      <p>Open Configure to see what each click will cast. Type a spell and press Enter to choose a different one. Leave the box empty to keep the spell already shown. Type <code>none</code> and press Enter to clear that click.</p>
+    </section>
+
+    <hr class="rule">
 
     <section class="support">
       <h2>Keep the forge lit</h2>
