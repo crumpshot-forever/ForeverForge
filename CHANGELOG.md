@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.0
+
+- **Durability Warning.** Chat once per equipped piece when durability is at or below a threshold (default 30%). Silent in combat; deferred warn after combat. Optional sound off by default. No on-screen overlay.
+
 ## 1.0.8
 
 - No feature changes. This release checks that CurseForge receives a new tag on its own.
