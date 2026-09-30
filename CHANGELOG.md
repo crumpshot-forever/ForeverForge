@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.0
+
+- **Quiet Errors.** Hides a curated set of combat spam on the floating error frame (out of range, not ready / cooldown, resource shortfalls, and similar attack spam). Matched against locale-safe `ERR_*` globals. Other errors still show. One `/ff` switch (default on).
+
 ## 1.0.8
 
 - No feature changes. This release checks that CurseForge receives a new tag on its own.
