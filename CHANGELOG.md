@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.0
+
+- **Rapid Mail.** Open All on the default mailbox. Takes free gold and attachments, skips COD and GM mail, throttles takes, and stops when bags are full.
+- **Mail Expire Alert.** On login, chat if any recorded character has mailbox mail expiring within N days (default 3, configurable). Snapshots earliest expiry when the mailbox closes. Multi-alt via name-realm keys.
+
 ## 1.0.8
 
 - No feature changes. This release checks that CurseForge receives a new tag on its own.
