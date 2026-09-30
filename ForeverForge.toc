@@ -4,7 +4,7 @@
 ## Title: Forever Forge
 ## Notes: Menu and minimap button for independent in-game tools.
 ## Author: Forever Forge
-## Version: 1.0.8
+## Version: 1.1.0
 ## IconTexture: Interface\AddOns\ForeverForge\Textures\Minimap
 ## SavedVariables: ForeverForgeDB
 
@@ -19,6 +19,7 @@ Modules\BagSections.lua
 Modules\CleanBank.lua
 Modules\QuickDrop.lua
 Modules\AutoSellJunk.lua
+Modules\RepairAll.lua
 Modules\QuickHands.lua
 Modules\EnemyPlayerAlert.lua
 Modules\ClickHeal.lua
