@@ -2,7 +2,7 @@
 
 One menu of light-weight tools for WoW: Forever. Each tool has its own on/off switch. The normal bags, bank, loot window, party frames, and tooltips stay in place.
 
-Current version: **1.0.8**.
+Current version: **1.5.0**.
 
 Open the menu with the minimap button, or type `/ff`, `/forge`, or `/foreverforge`.
 
@@ -10,7 +10,7 @@ Open the menu with the minimap button, or type `/ff`, `/forge`, or `/foreverforg
 
 1. Download this repository and keep the folder named `ForeverForge`.
 2. Put `ForeverForge` in `Interface\AddOns`.
-3. Restart the game. The menu should show `v1.0.8`.
+3. Restart the game. The menu should show `v1.5.0`.
 
 Do not rename the folder. The game only loads it when the folder name matches `ForeverForge.toc`.
 
@@ -25,6 +25,7 @@ Do not rename the folder. The game only loads it when the folder name matches `F
 - **SpellMaxer.** A local line when one of your own action-bar spells is a lower rank than you can use.
 - **Enemy Player Alert.** A short sound and a local line for an enemy player in nameplate range. A guild name is included when the game provides it. The same character is skipped for 1 minute.
 - **Click Heal.** For a Priest, Druid, Paladin, or Shaman, modified clicks on party and raid frames cast heals. Your own character frame is left alone.
+- **Durability Warning.** Chat once per equipped piece when durability is at or below a threshold (default 30%). Silent in combat. Optional sound off by default. No overlay.
 
 Chat lines from these tools stay in your own chat window and start with `Forever Forge:`.
 
