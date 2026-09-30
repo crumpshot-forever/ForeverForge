@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.0
+
+- **Social Convenience.** Opt-in Accept Summon, Accept Res, Decline Duels, and BG Auto-Release (all off by default). No party-invite auto-accept.
+
 ## 1.3.0
 
 - **NPC Gossip Skip.** Skips single non-quest gossip and opens the flight map at flight masters. Hold Shift for normal talk.
