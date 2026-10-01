@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.6.0
+
+Package G — Chat Kit (seven independent chat tools). Lead may rebase after Packages A–F merge; this release is numbered from main `1.0.8`.
+
+- **Chat Copy Button.** A Copy control near chat tabs opens a selectable box of recent chat text for Ctrl+C.
+- **Clickable URL Copy.** `http(s)://` and common Discord invite forms become clickable; click opens a copy popup. The browser is never opened.
+- **Sticky Channel Control.** Optional sticky whispers (default off) and sticky custom channels (default off).
+- **Chat Fade Off.** Disables or greatly extends fade on the default chat frames only.
+- **Channel Short Names.** Common labels shorten to tags like `[G]`, `[P]`, `[R]`, `[O]`, `[W]`.
+- **Whisper Ding.** A short sound on whisper; optional Battle.net whisper ding (default off).
+- **Name Mention Highlight.** Highlights your character name in public chat; optional sound (default off).
+
 ## 1.0.8
 
 - No feature changes. This release checks that CurseForge receives a new tag on its own.
