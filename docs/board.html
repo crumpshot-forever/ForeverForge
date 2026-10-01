@@ -254,11 +254,27 @@
     }
     code { color: var(--gold); font-size: 0.9em; }
 
+    .status-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      justify-content: center;
+      margin: 0 0 14px;
+    }
+    .status-row .status { margin: 0; }
+    button.btn {
+      font: inherit;
+      cursor: pointer;
+    }
+    button.btn:disabled { opacity: 0.5; cursor: wait; }
+
     @media (max-width: 720px) {
       header.hero { padding-top: 24px; }
       header.hero h1 { font-size: 1.6rem; }
-      .pkg-table th:nth-child(3),
-      .pkg-table td:nth-child(3) { display: none; }
+      /* Keep Status visible; drop Name on narrow screens */
+      .pkg-table th:nth-child(2),
+      .pkg-table td:nth-child(2) { display: none; }
     }
   </style>
 </head>
@@ -338,7 +354,10 @@
 
     <hr class="rule">
 
-    <p class="status" id="board-status" aria-live="polite">Loading issues…</p>
+    <div class="status-row">
+      <p class="status" id="board-status" aria-live="polite">Loading issues…</p>
+      <button type="button" class="btn" id="board-refresh">Refresh</button>
+    </div>
 
     <div class="board-scroll">
       <div class="board" id="board" role="list">
@@ -366,12 +385,14 @@
         { key: "released", label: "Released" },
         { key: "tabled", label: "Tabled" }
       ];
+      // state=all so closed lane:released issues still appear
       var API =
-        "https://api.github.com/repos/crumpshot-forever/ForeverForge/issues?state=open&per_page=100";
+        "https://api.github.com/repos/crumpshot-forever/ForeverForge/issues?state=all&per_page=100";
       var SNAPSHOT = "board-data.json";
 
       var boardEl = document.getElementById("board");
       var statusEl = document.getElementById("board-status");
+      var refreshBtn = document.getElementById("board-refresh");
 
       function laneOf(issue) {
         var labels = issue.labels || [];
@@ -467,6 +488,7 @@
 
         statusEl.className = "status ok";
         statusEl.textContent = sourceLabel;
+        if (refreshBtn) refreshBtn.disabled = false;
       }
 
       function loadSnapshot(reason) {
@@ -501,17 +523,43 @@
         });
       }
 
-      loadLive()
-        .then(function (data) {
-          render(
-            normalize(data),
-            "Live from GitHub Issues · updated just now."
-          );
-        })
-        .catch(function (err) {
-          var why = (err && err.message) || "fetch failed";
-          loadSnapshot(why);
+      function stamp() {
+        try {
+          return new Date().toLocaleString(undefined, {
+            dateStyle: "medium",
+            timeStyle: "short"
+          });
+        } catch (e) {
+          return new Date().toISOString();
+        }
+      }
+
+      function loadBoard() {
+        if (refreshBtn) refreshBtn.disabled = true;
+        statusEl.className = "status";
+        statusEl.textContent = "Loading issues…";
+        return loadLive()
+          .then(function (data) {
+            render(
+              normalize(data),
+              "Live from GitHub Issues (open + closed) · last fetched " +
+                stamp() +
+                "."
+            );
+          })
+          .catch(function (err) {
+            var why = (err && err.message) || "fetch failed";
+            return loadSnapshot(why + "; last try " + stamp());
+          });
+      }
+
+      if (refreshBtn) {
+        refreshBtn.addEventListener("click", function () {
+          loadBoard();
         });
+      }
+
+      loadBoard();
     })();
   </script>
 </body>
