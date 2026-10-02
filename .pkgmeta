@@ -1,3 +1,8 @@
+package-as: ForeverForge
+
 ignore:
   - Screenshots
   - docs
+  - .github
+  - work-orders
+  - CURSEFORGE.md
