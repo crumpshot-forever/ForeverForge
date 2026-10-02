@@ -7,7 +7,7 @@ Ship one package at a time → UAT → Lead merges → then next. Do **not** mer
 
 | Pkg | Name | Features | PR | Branch | Issue | Lane |
 |-----|------|----------|----|--------|-------|------|
-| A | Vendor Stop | Repair All · Vendor Price Tooltip | [#13](https://github.com/crumpshot-forever/ForeverForge/pull/13) | `feat/package-a-vendor-stop` | #2 | UAT |
+| A | Vendor Stop | Repair All · Vendor Price Tooltip | [#13](https://github.com/crumpshot-forever/ForeverForge/pull/13) merged | `main` | #2 | **Released** |
 | B | Quiet Errors | Quiet Errors | [#14](https://github.com/crumpshot-forever/ForeverForge/pull/14) | `feat/package-b-quiet-errors` | #4 | UAT |
 | C | Mail Kit | Rapid Mail · Mail Expire Alert | [#15](https://github.com/crumpshot-forever/ForeverForge/pull/15) | `feat/package-c-mail-kit` | #3 | UAT |
 | D | NPC Flow | NPC Assist · Quest Auto | [#16](https://github.com/crumpshot-forever/ForeverForge/pull/16) | `feat/package-d-npc-flow` | #5 | UAT |
