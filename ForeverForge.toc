@@ -28,3 +28,4 @@ Modules\ClickHeal.lua
 Modules\MailExpireAlert.lua
 Modules\NpcAssist.lua
 Modules\QuestAuto.lua
+Modules\SocialConvenience.lua
