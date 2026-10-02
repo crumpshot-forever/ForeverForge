@@ -2,7 +2,7 @@
 
 ## 1.4.0
 
-- **Social Convenience.** Opt-in Accept Summon, Accept Res, Decline Duels, and BG Auto-Release (all off by default). No party-invite auto-accept.
+- **Quick Accept.** Opt-in Accept Summon, Accept Res, auto-accept party invites, Decline Duels, and BG Auto-Release (all off by default).
 
 ## 1.3.0
 

@@ -29,7 +29,7 @@ Do not rename the folder. The game only loads it when the folder name matches `F
 - **Mail Expire Alert.** On login, chat if recorded alt mail expires within N days. Snapshots when you close the mailbox.
 - **NPC Gossip Skip.** Skips single non-quest gossip and opens the flight map at flight masters. Hold Shift for normal talk.
 - **Auto Quest.** Accepts and turns in quests. Hold Shift to handle them yourself. Skips gold-cost and multi-reward turn-ins.
-- **Social Convenience.** Opt-in Accept Summon, Accept Res, Decline Duels, and BG Auto-Release (all off by default). No party-invite auto-accept.
+- **Quick Accept.** Opt-in Accept Summon, Accept Res, auto-accept party invites, Decline Duels, and BG Auto-Release (all off by default).
 
 Chat lines from these tools stay in your own chat window and start with `Forever Forge:`.
 

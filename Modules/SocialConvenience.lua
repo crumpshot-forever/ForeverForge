@@ -1,7 +1,7 @@
 --[[
-  Social Convenience. Four independent opt-in switches (all default OFF):
-  Accept Summon, Accept Res, Decline Duels, BG Auto-Release.
-  No party-invite auto-accept. Module master switch can stay on; each
+  Quick Accept. Five independent opt-in switches (all default OFF):
+  Accept Summon, Accept Res, auto-accept party invites, Decline Duels,
+  and BG Auto-Release. The module master switch can stay on; each
   action is gated by its own Configure checkbox.
 ]]
 
@@ -60,6 +60,9 @@ local function Config()
   end
   if cfg.bgAutoRelease == nil then
     cfg.bgAutoRelease = false
+  end
+  if cfg.acceptParty == nil then
+    cfg.acceptParty = false
   end
   return cfg
 end
@@ -188,6 +191,20 @@ local function AcceptRes()
   }, 1)
 end
 
+local function AcceptParty()
+  if not FTK:IsEnabled(MODULE_ID) or not Config().acceptParty then
+    return
+  end
+  if type(AcceptGroup) == "function" then
+    pcall(AcceptGroup)
+  end
+  -- Button 1 is Accept. AcceptGroup does not always close the dialog.
+  ClickStaticPopup({ "PARTY_INVITE" }, 1)
+  if type(StaticPopup_Hide) == "function" then
+    pcall(StaticPopup_Hide, "PARTY_INVITE")
+  end
+end
+
 local function DeclineDuel()
   if not FTK:IsEnabled(MODULE_ID) or not Config().declineDuels then
     return
@@ -264,8 +281,8 @@ local function BuildOptions(_, parent)
   note:SetWidth(420)
   note:SetJustifyH("LEFT")
   note:SetWordWrap(true)
-  note:SetText("Each action is opt-in and off by default. Turn on only what you want. Party invites are never auto-accepted.")
-  y = y - 40
+  note:SetText("Each action is opt-in and off by default. Turn on only what you want.")
+  y = y - 32
   local cfg = Config()
   y = CheckLine(parent, "Accept Summon", y, function()
     return cfg.acceptSummon == true
@@ -276,6 +293,11 @@ local function BuildOptions(_, parent)
     return cfg.acceptRes == true
   end, function(value)
     Config().acceptRes = value == true
+  end)
+  y = CheckLine(parent, "Auto accept party invites", y, function()
+    return cfg.acceptParty == true
+  end, function(value)
+    Config().acceptParty = value == true
   end)
   y = CheckLine(parent, "Decline Duels", y, function()
     return cfg.declineDuels == true
@@ -298,6 +320,8 @@ frame:SetScript("OnEvent", function(_, event, ...)
     Later(AcceptSummon)
   elseif event == "RESURRECT_REQUEST" then
     Later(AcceptRes)
+  elseif event == "PARTY_INVITE_REQUEST" then
+    Later(AcceptParty)
   elseif event == "DUEL_REQUESTED" then
     Later(DeclineDuel)
   elseif event == "PLAYER_DEAD" then
@@ -313,8 +337,8 @@ end)
 
 FTK:RegisterModule({
   id = MODULE_ID,
-  name = "Social Convenience",
-  description = "Opt-in Accept Summon, Accept Res, Decline Duels, and BG Auto-Release. All off by default. No party-invite auto-accept.",
+  name = "Quick Accept",
+  description = "Opt-in Accept Summon, Accept Res, party invites, Decline Duels, and BG Auto-Release. All off by default.",
   -- Master switch default on so Configure checkboxes are reachable; each
   -- action still defaults OFF until the player opts in.
   defaultEnabled = true,
@@ -324,6 +348,7 @@ FTK:RegisterModule({
     local names = {
       "CONFIRM_SUMMON",
       "RESURRECT_REQUEST",
+      "PARTY_INVITE_REQUEST",
       "DUEL_REQUESTED",
       "PLAYER_DEAD",
       "AREA_SPIRIT_HEALER_IN_RANGE",
