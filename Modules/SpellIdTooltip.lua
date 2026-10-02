@@ -1012,7 +1012,9 @@ local function AppendVendorPrice(tooltip, itemId)
         return "Vendor stack (" .. count .. "): " .. stackText
       end)
       if stackOk and type(stackLine) == "string" then
-        AppendText(tooltip, stackLine, true)
+        -- Keep resize off. tooltip:Show() from a coin-texture line can re-enter
+        -- OnTooltipSetItem, and GetText() often does not match the |T string.
+        AppendText(tooltip, stackLine, false)
       end
     end
   end
@@ -1212,9 +1214,9 @@ local function CheckLine(parent, label, y, getter, setter)
   local box = CreateFrame("CheckButton", nil, parent)
   box:SetSize(24, 24)
   box:SetPoint("TOPLEFT", 0, y)
-  box:SetNormalTexture("Interface\Buttons\UI-CheckBox-Up")
-  box:SetPushedTexture("Interface\Buttons\UI-CheckBox-Down")
-  box:SetCheckedTexture("Interface\Buttons\UI-CheckBox-Check")
+  box:SetNormalTexture("Interface\\Buttons\\UI-CheckBox-Up")
+  box:SetPushedTexture("Interface\\Buttons\\UI-CheckBox-Down")
+  box:SetCheckedTexture("Interface\\Buttons\\UI-CheckBox-Check")
   box:SetChecked(getter() == true)
   box:SetScript("OnClick", function(self)
     setter(self:GetChecked() == true)

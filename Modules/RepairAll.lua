@@ -22,6 +22,14 @@ local function IsSecret(value)
   return ok and secret == true
 end
 
+-- Older and Camelot clients return 1 for a yes flag. Retail returns true.
+local function ApiTrue(value)
+  if IsSecret(value) then
+    return false
+  end
+  return value == true or value == 1
+end
+
 local function PlainNumber(value)
   if type(value) ~= "number" or IsSecret(value) then
     return nil
@@ -56,10 +64,10 @@ local function CanRepairHere()
     return false
   end
   local ok, can = pcall(CanMerchantRepair)
-  if not ok or IsSecret(can) then
+  if not ok or not ApiTrue(can) then
     return false
   end
-  return can == true
+  return true
 end
 
 local function RepairCost()
@@ -71,10 +79,7 @@ local function RepairCost()
     return nil, false
   end
   cost = PlainNumber(cost)
-  if IsSecret(canRepair) then
-    return cost, false
-  end
-  return cost, canRepair == true
+  return cost, ApiTrue(canRepair)
 end
 
 local function PlayerMoney()
@@ -93,7 +98,7 @@ local function GuildCanRepair(cost)
     return false
   end
   local ok, can = pcall(CanGuildBankRepair)
-  if not ok or IsSecret(can) or can ~= true then
+  if not ok or not ApiTrue(can) then
     return false
   end
   -- Some clients expose GetGuildBankWithdrawMoney; treat missing as allowed.
