@@ -311,7 +311,7 @@ end)
 
 FTK:RegisterModule({
   id = MODULE_ID,
-  name = "Quest Auto",
+  name = "Auto Quest",
   description = "Accepts and turns in quests. Hold Shift to handle them yourself. Skips gold-cost quests and multi-reward turn-ins.",
   defaultEnabled = true,
   onEnable = function()

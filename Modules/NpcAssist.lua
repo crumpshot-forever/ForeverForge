@@ -252,7 +252,7 @@ end)
 
 FTK:RegisterModule({
   id = MODULE_ID,
-  name = "NPC Assist",
+  name = "NPC Gossip Skip",
   description = "Skips single non-quest gossip and opens the flight map at flight masters. Hold Shift for normal talk.",
   defaultEnabled = true,
   onEnable = function()

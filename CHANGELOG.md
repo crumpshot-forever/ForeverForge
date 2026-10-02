@@ -2,8 +2,8 @@
 
 ## 1.3.0
 
-- **NPC Assist.** Skips single non-quest gossip and opens the flight map at flight masters. Hold Shift for normal talk.
-- **Quest Auto.** Accepts and turns in quests. Hold Shift to handle them yourself. Skips gold-cost quests and multi-reward turn-ins.
+- **NPC Gossip Skip.** Skips single non-quest gossip and opens the flight map at flight masters. Hold Shift for normal talk.
+- **Auto Quest.** Accepts and turns in quests. Hold Shift to handle them yourself. Skips gold-cost quests and multi-reward turn-ins.
 
 ## 1.0.8
 
