@@ -42,6 +42,11 @@ local function PlainString(value)
   return value
 end
 
+-- Older clients return 1 for yes. Modern clients return true.
+local function ApiTrue(value)
+  return (not IsSecret(value)) and (value == true or value == 1)
+end
+
 local function Config()
   local cfg = FTK:GetConfig(MODULE_ID)
   if cfg.acceptSummon == nil then
@@ -68,22 +73,36 @@ local function Later(callback)
 end
 
 local function InBattleground()
-  if C_PvP and C_PvP.IsBattleground then
+  -- "pvp" is a battleground. Any other known instance type is not, including
+  -- the open world. UnitInBattleground may return 0, and 0 is truthy in Lua.
+  if type(IsInInstance) == "function" then
+    local ok, inInstance, instanceType = pcall(IsInInstance)
+    if ok then
+      local kind = PlainString(instanceType)
+      if kind == "pvp" and ApiTrue(inInstance) then
+        return true
+      end
+      if kind then
+        return false
+      end
+    end
+  end
+  if C_PvP and type(C_PvP.IsBattleground) == "function" then
     local ok, value = pcall(C_PvP.IsBattleground)
-    if ok and not IsSecret(value) and value == true then
+    if ok and ApiTrue(value) then
+      return true
+    end
+  end
+  if type(InActiveBattlefield) == "function" then
+    local ok, value = pcall(InActiveBattlefield)
+    if ok and ApiTrue(value) then
       return true
     end
   end
   if type(UnitInBattleground) == "function" then
     local ok, value = pcall(UnitInBattleground, "player")
-    if ok and not IsSecret(value) and value then
-      return true
-    end
-  end
-  -- Classic: GetZonePVPInfo / IsActiveBattlefieldArena — treat instance type.
-  if type(IsInInstance) == "function" then
-    local ok, inInstance, instanceType = pcall(IsInInstance)
-    if ok and inInstance == true and PlainString(instanceType) == "pvp" then
+    -- nil means outside a battleground. A number, including 0, means inside one.
+    if ok and PlainNumber(value) ~= nil then
       return true
     end
   end
@@ -97,10 +116,15 @@ local function ClickStaticPopup(whichList, buttonIndex)
     for i = 1, #(whichList or {}) do
       local which = whichList[i]
       local ok, visible = pcall(StaticPopup_Visible, which)
-      if ok and PlainString(visible) then
-        -- visible is the frame name when shown.
+      if ok and visible and not IsSecret(visible) then
+        -- Classic returns the frame name. Newer builds return the frame.
+        local popup = nil
         local frameName = PlainString(visible)
-        local popup = frameName and _G[frameName]
+        if frameName then
+          popup = _G[frameName]
+        elseif type(visible) == "table" then
+          popup = visible
+        end
         if popup then
           pcall(StaticPopup_OnClick, popup, buttonIndex)
           return true
@@ -114,7 +138,7 @@ local function ClickStaticPopup(whichList, buttonIndex)
     local popup = _G["StaticPopup" .. i]
     if popup and popup.IsShown then
       local ok, shown = pcall(popup.IsShown, popup)
-      if ok and shown == true then
+      if ok and ApiTrue(shown) then
         local which = PlainString(popup.which)
         local j
         for j = 1, #(whichList or {}) do
@@ -140,18 +164,14 @@ local function AcceptSummon()
   if not FTK:IsEnabled(MODULE_ID) or not Config().acceptSummon then
     return
   end
-  if type(C_SummonInfo) == "table" and C_SummonInfo.ConfirmSummon then
-    local ok = pcall(C_SummonInfo.ConfirmSummon)
-    if ok then
-      return
-    end
+  if type(C_SummonInfo) == "table" and type(C_SummonInfo.ConfirmSummon) == "function" then
+    pcall(C_SummonInfo.ConfirmSummon)
   end
   if type(ConfirmSummon) == "function" then
-    if pcall(ConfirmSummon) then
-      return
-    end
+    pcall(ConfirmSummon)
   end
-  ClickStaticPopup({ "CONFIRM_SUMMON", "CONFIRM_SUMMON_STARTING_AREA" }, 1)
+  -- A successful pcall only means the call did not throw.
+  ClickStaticPopup({ "CONFIRM_SUMMON" }, 1)
 end
 
 local function AcceptRes()
@@ -159,9 +179,7 @@ local function AcceptRes()
     return
   end
   if type(AcceptResurrect) == "function" then
-    if pcall(AcceptResurrect) then
-      return
-    end
+    pcall(AcceptResurrect)
   end
   ClickStaticPopup({
     "RESURRECT",
@@ -177,28 +195,44 @@ local function DeclineDuel()
   if type(CancelDuel) == "function" then
     pcall(CancelDuel)
   end
+  -- Button 1 accepts the duel. Button 2 is Decline.
+  ClickStaticPopup({ "DUEL_REQUESTED" }, 2)
 end
 
-local function BgRelease()
+local function PlayerIsDead()
+  if type(UnitIsDeadOrGhost) == "function" then
+    local ok, value = pcall(UnitIsDeadOrGhost, "player")
+    if ok and ApiTrue(value) then
+      return true
+    end
+    if ok and not IsSecret(value) and not ApiTrue(value) then
+      return false
+    end
+  end
+  if type(UnitIsDead) == "function" then
+    local ok, value = pcall(UnitIsDead, "player")
+    if ok and ApiTrue(value) then
+      return true
+    end
+  end
+  if type(UnitIsGhost) == "function" then
+    local ok, value = pcall(UnitIsGhost, "player")
+    if ok and ApiTrue(value) then
+      return true
+    end
+  end
+  return false
+end
+
+local function BgRelease(fromDeath)
   if not FTK:IsEnabled(MODULE_ID) or not Config().bgAutoRelease then
     return
   end
   if not InBattleground() then
     return
   end
-  local dead = false
-  if type(UnitIsDeadOrGhost) == "function" then
-    local ok, value = pcall(UnitIsDeadOrGhost, "player")
-    if ok and not IsSecret(value) then
-      dead = value == true
-    end
-  elseif type(UnitIsDead) == "function" then
-    local ok, value = pcall(UnitIsDead, "player")
-    if ok and not IsSecret(value) then
-      dead = value == true
-    end
-  end
-  if not dead then
+  -- PLAYER_DEAD is the death. The unit flag can still read as alive for a moment.
+  if not fromDeath and not PlayerIsDead() then
     return
   end
   if type(RepopMe) == "function" then
@@ -215,7 +249,7 @@ local function CheckLine(parent, label, y, getter, setter)
   box:SetCheckedTexture("Interface\\Buttons\\UI-CheckBox-Check")
   box:SetChecked(getter() == true)
   box:SetScript("OnClick", function(self)
-    setter(self:GetChecked() == true)
+    setter(ApiTrue(self:GetChecked()))
   end)
   local text = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
   text:SetPoint("LEFT", box, "RIGHT", 4, 0)
@@ -267,10 +301,13 @@ frame:SetScript("OnEvent", function(_, event, ...)
   elseif event == "DUEL_REQUESTED" then
     Later(DeclineDuel)
   elseif event == "PLAYER_DEAD" then
-    Later(BgRelease)
+    Later(function()
+      BgRelease(true)
+    end)
   elseif event == "AREA_SPIRIT_HEALER_IN_RANGE" then
-    -- Optional spirit healer path; RepopMe still the BG release.
-    Later(BgRelease)
+    Later(function()
+      BgRelease(false)
+    end)
   end
 end)
 
