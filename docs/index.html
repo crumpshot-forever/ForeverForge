@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Forever Forge</title>
-  <meta name="description" content="Light-weight tools for WoW: Forever. Bags, bank, loot, tooltips, and party healing. Free, with a way to support the work.">
+  <meta name="description" content="Light-weight tools for WoW: Forever. Bags, bank, loot, vendors, mail, quests, tooltips, and party healing — each with its own switch. Free, with a way to support the work.">
   <style>
     :root {
       --bg: #0b0a09;
@@ -35,7 +35,18 @@
     .wrap { width: min(var(--max), calc(100% - 32px)); margin: 0 auto; text-align: center; }
     header.hero { padding: 48px 0 12px; text-align: center; }
     .logo { width: min(640px, 100%); filter: drop-shadow(0 18px 40px rgba(0, 0, 0, 0.55)); }
-    .lede { max-width: 40rem; margin: 8px auto 0; color: var(--muted); font-size: 1.15rem; }
+    .version {
+      display: inline-block;
+      margin: 14px 0 0;
+      padding: 4px 14px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--gold);
+      font-size: 0.92rem;
+      letter-spacing: 0.04em;
+      background: rgba(232, 197, 106, 0.06);
+    }
+    .lede { max-width: 40rem; margin: 12px auto 0; color: var(--muted); font-size: 1.15rem; }
     .actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin: 28px 0 8px; }
     .btn {
       display: inline-block;
@@ -103,6 +114,7 @@
   <header class="hero">
     <div class="wrap">
       <img class="logo" src="images/logo.jpg" alt="Forever Forge">
+      <p class="version">v1.4.0</p>
       <p class="lede">One addon of light-weight tools for WoW: Forever. Open it from the anvil on your minimap, or type <code>/ff</code>, <code>/forge</code>, or <code>/foreverforge</code>.</p>
       <div class="actions">
         <a class="btn solid" href="#support">Support the forge</a>
@@ -124,6 +136,7 @@
     </section>
 
     <p>Every tool has its own switch. Turn one off and the rest keep working. Your choices are remembered. Your bags, bank, loot window, party frames, and tooltips stay the ones you already use. Forever Forge only adds the help on top.</p>
+    <p>The menu opens once on a new install and once when the version changes. The footer reads Support &amp; Feedback — click it to copy <code>https://crumpshot-forever.github.io/ForeverForge</code>.</p>
     <img class="shot" src="images/menu.png" alt="The Forever Forge menu, with a switch for each tool">
 
     <hr class="rule">
@@ -155,7 +168,7 @@
     <section class="feature">
       <h2>ID Tooltips</h2>
       <img class="shot" src="images/id-tooltips.png" alt="A buff tooltip showing its spell ID">
-      <p>Hover anything and see the ID you actually need. Spells, items, creatures, quests, buffs, and debuffs each show theirs. Quest items in your bags or bank can also name the quest they belong to.</p>
+      <p>Hover anything and see the ID you actually need. Spells, items, creatures, quests, buffs, and debuffs each show theirs. Quest items in your bags or bank can also name the quest they belong to. Item tooltips can show the vendor sell price for one and for a full stack — toggle that under ID Tooltips → Configure.</p>
     </section>
 
     <hr class="rule">
@@ -172,6 +185,13 @@
     <section class="feature">
       <h2>Auto-sell junk</h2>
       <p>Open a vendor and the grey junk sells itself. Quest items stay with you. Anything a merchant will not buy stays with you. Walk away from the shop and the selling stops.</p>
+    </section>
+
+    <hr class="rule">
+
+    <section class="feature">
+      <h2>Repair All</h2>
+      <p>Open a repair merchant and your gear is repaired in one step. Optional guild bank funds live under Configure. Vendors that cannot repair are left alone. The merchant window and your bags stay the normal ones.</p>
     </section>
 
     <hr class="rule">
@@ -200,6 +220,34 @@
 
     <hr class="rule">
 
+    <section class="feature">
+      <h2>Mail Expire Alert</h2>
+      <p>When you close the mailbox, Forever Forge remembers the soonest expiry for that character. On login, chat tells you if any recorded alt has mail expiring within the warn window (default 3 days, configurable). Forever already has stock Open All — this tool does not add a second one.</p>
+    </section>
+
+    <hr class="rule">
+
+    <section class="feature">
+      <h2>NPC Gossip Skip</h2>
+      <p>Single non-quest gossip options are skipped for you, and flight masters open the flight map. Hold Shift when you want the normal talk window.</p>
+    </section>
+
+    <hr class="rule">
+
+    <section class="feature">
+      <h2>Auto Quest</h2>
+      <p>Quests accept and turn in for you. Hold Shift to handle them yourself. Gold-cost quests and turn-ins with more than one reward stay yours to choose.</p>
+    </section>
+
+    <hr class="rule">
+
+    <section class="feature">
+      <h2>Quick Accept</h2>
+      <p>Five opt-in switches, all off by default: Accept Summon, Accept Res, auto-accept party invites, Decline Duels, and BG Auto-Release. Turn on only what you want.</p>
+    </section>
+
+    <hr class="rule">
+
     <section class="support">
       <h2>Keep the forge lit</h2>
       <p>Forever Forge is free, including every future update. If you've enjoyed this addon, please leave a donation and tell your friends.</p>
@@ -212,7 +260,7 @@
 
   <footer>
     <div class="wrap">
-      <p>Install the folder named <code>ForeverForge</code> and leave that name as it is. The menu title is Forever Forge. Messages from the tools appear in your own chat window.</p>
+      <p>Current release: <code>v1.4.0</code>. Install the folder named <code>ForeverForge</code> and leave that name as it is. The menu title is Forever Forge. Messages from the tools appear in your own chat window.</p>
       <p>
         <a href="https://github.com/crumpshot-forever/ForeverForge">Source and changelog</a>
         · <a href="https://addons.wago.io/addons/foreverforge">Wago</a>
