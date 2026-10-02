@@ -30,6 +30,10 @@ Chat lines from these tools stay in your own chat window and start with `Forever
 
 Changes are listed in [CHANGELOG.md](CHANGELOG.md).
 
+## Releases (CurseForge)
+
+Tagged releases (`vX.Y.Z`) are packaged by GitHub Actions and uploaded to CurseForge. Setup and Lead checklist: [docs/release-curseforge.md](docs/release-curseforge.md).
+
 ## License
 
 [MIT](LICENSE). Copyright (c) 2026 crumpshot-forever.
