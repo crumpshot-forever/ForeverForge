@@ -1,6 +1,7 @@
 --[[
   Adds spell, item, NPC, and quest ids to the tooltip under the cursor.
   A bag slot that already has a quest id also shows that quest's name.
+  Optional vendor sell price (unit and stack) on item tooltips.
 
   Buff and debuff mouseovers use the aura tooltip pane. Spell ids are added
   by this addon's tooltip hooks. The interface blocks addons from setting
@@ -874,6 +875,151 @@ questData:SetScript("OnEvent", function(_, event, questId, success)
   ShowLoadedQuestTitle(questId, title)
 end)
 
+local function VendorPriceConfig()
+  local cfg = FTK:GetConfig(MODULE_ID)
+  if cfg.showVendorPrice == nil then
+    cfg.showVendorPrice = true
+  end
+  return cfg
+end
+
+local function VendorPriceEnabled()
+  if not FTK:IsEnabled(MODULE_ID) then
+    return false
+  end
+  return VendorPriceConfig().showVendorPrice ~= false
+end
+
+local function CoinText(copper)
+  copper = PlainNumber(copper)
+  if not copper or copper < 1 then
+    return nil
+  end
+  if type(GetCoinTextureString) == "function" then
+    local ok, text = pcall(GetCoinTextureString, copper)
+    if ok and type(text) == "string" and text ~= "" and not IsSecret(text) then
+      return text
+    end
+  end
+  local g = math.floor(copper / 10000)
+  local s = math.floor((copper % 10000) / 100)
+  local c = copper % 100
+  local parts = {}
+  if g > 0 then
+    parts[#parts + 1] = g .. "g"
+  end
+  if s > 0 or g > 0 then
+    parts[#parts + 1] = s .. "s"
+  end
+  parts[#parts + 1] = c .. "c"
+  return table.concat(parts, " ")
+end
+
+-- Forever / retail: sellPrice is return 11 from GetItemInfo.
+-- Prefer that; fall back to GetSellValue when an older client exposes it.
+local function ItemSellPrice(itemId)
+  itemId = PlainId(itemId)
+  if not itemId then
+    return nil
+  end
+  if type(GetItemInfo) == "function" then
+    local ok, sellPrice = pcall(function()
+      local _, _, _, _, _, _, _, _, _, _, price = GetItemInfo(itemId)
+      return price
+    end)
+    sellPrice = ok and PlainNumber(sellPrice) or nil
+    if sellPrice and sellPrice > 0 then
+      return sellPrice
+    end
+  end
+  if C_Item and C_Item.GetItemInfo then
+    local ok, sellPrice = pcall(function()
+      local info = C_Item.GetItemInfo(itemId)
+      if type(info) == "table" then
+        return info.sellPrice or info.itemSellPrice
+      end
+      -- Some builds return multiple values; recover sell price positionally.
+      local a, b, c, d, e, f, g, h, i, j, price = C_Item.GetItemInfo(itemId)
+      return price
+    end)
+    sellPrice = ok and PlainNumber(sellPrice) or nil
+    if sellPrice and sellPrice > 0 then
+      return sellPrice
+    end
+  end
+  if type(GetSellValue) == "function" then
+    local ok, value = pcall(GetSellValue, itemId)
+    value = ok and PlainNumber(value) or nil
+    if value and value > 0 then
+      return value
+    end
+  end
+  return nil
+end
+
+local function TooltipItemCount(tooltip)
+  local bag, slot = ContainerSlot(tooltip)
+  if bag ~= nil and slot ~= nil then
+    if C_Container and C_Container.GetContainerItemInfo then
+      local ok, info = pcall(C_Container.GetContainerItemInfo, bag, slot)
+      if ok and type(info) == "table" then
+        local count = PlainNumber(info.stackCount) or PlainNumber(info.quantity) or PlainNumber(info.count)
+        if count and count >= 1 then
+          return count
+        end
+      end
+    end
+    if type(GetContainerItemInfo) == "function" then
+      local ok, texture, itemCount = pcall(GetContainerItemInfo, bag, slot)
+      itemCount = ok and PlainNumber(itemCount) or nil
+      if itemCount and itemCount >= 1 then
+        return itemCount
+      end
+    end
+  end
+  return 1
+end
+
+local function AppendVendorPrice(tooltip, itemId)
+  if not VendorPriceEnabled() or not tooltip then
+    return
+  end
+  local unit = ItemSellPrice(itemId)
+  if not unit then
+    return
+  end
+  local unitText = CoinText(unit)
+  if not unitText then
+    return
+  end
+  local count = TooltipItemCount(tooltip)
+  if not count or count < 1 then
+    count = 1
+  end
+  local unitOk, unitLine = pcall(function()
+    return "Vendor: " .. unitText
+  end)
+  if unitOk and type(unitLine) == "string" then
+    AppendText(tooltip, unitLine, false)
+  end
+  if count > 1 then
+    local stack = unit * count
+    -- Guard against overflow / secret multiplication failures.
+    stack = PlainNumber(stack)
+    local stackText = stack and CoinText(stack) or nil
+    if stackText then
+      local stackOk, stackLine = pcall(function()
+        return "Vendor stack (" .. count .. "): " .. stackText
+      end)
+      if stackOk and type(stackLine) == "string" then
+        -- Keep resize off. tooltip:Show() from a coin-texture line can re-enter
+        -- OnTooltipSetItem, and GetText() often does not match the |T string.
+        AppendText(tooltip, stackLine, false)
+      end
+    end
+  end
+end
+
 local function OnItemTooltip(tooltip, data)
   if not FTK:IsEnabled(MODULE_ID) then
     return
@@ -886,6 +1032,7 @@ local function OnItemTooltip(tooltip, data)
   end
   Append(tooltip, itemId, "Item ID")
   AppendQuestName(tooltip, itemId)
+  AppendVendorPrice(tooltip, itemId)
 end
 
 -- Pet-action tooltips identify a bar slot in data.id, not a spell.
@@ -911,6 +1058,7 @@ local function OnLegacyItem(tooltip)
   local itemId = IdFromItemTooltip(tooltip)
   Append(tooltip, itemId, "Item ID")
   AppendQuestName(tooltip, itemId)
+  AppendVendorPrice(tooltip, itemId)
 end
 
 local function NpcIdFromGuid(guid)
@@ -1062,12 +1210,48 @@ local function Install()
   end
 end
 
+local function CheckLine(parent, label, y, getter, setter)
+  local box = CreateFrame("CheckButton", nil, parent)
+  box:SetSize(24, 24)
+  box:SetPoint("TOPLEFT", 0, y)
+  box:SetNormalTexture("Interface\\Buttons\\UI-CheckBox-Up")
+  box:SetPushedTexture("Interface\\Buttons\\UI-CheckBox-Down")
+  box:SetCheckedTexture("Interface\\Buttons\\UI-CheckBox-Check")
+  box:SetChecked(getter() == true)
+  box:SetScript("OnClick", function(self)
+    setter(self:GetChecked() == true)
+  end)
+  local text = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+  text:SetPoint("LEFT", box, "RIGHT", 4, 0)
+  text:SetText(label)
+  return y - 28
+end
+
+local function BuildOptions(_, parent)
+  local y = -4
+  local note = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+  note:SetPoint("TOPLEFT", 0, y)
+  note:SetWidth(420)
+  note:SetJustifyH("LEFT")
+  note:SetWordWrap(true)
+  note:SetText("Vendor price shows what a merchant would pay for one item, and for the whole stack when you hover a stack in your bags.")
+  y = y - 40
+  y = CheckLine(parent, "Vendor price", y, function()
+    return VendorPriceConfig().showVendorPrice ~= false
+  end, function(value)
+    VendorPriceConfig().showVendorPrice = value == true
+  end)
+  parent:SetHeight(80)
+end
+
 FTK:RegisterModule({
   id = MODULE_ID,
   name = "ID Tooltips",
-  description = "Shows spell, item, NPC, and quest IDs on the tooltip under your cursor. Bag quest items also show the quest name when that slot knows it.",
+  description = "Shows spell, item, NPC, and quest IDs on the tooltip under your cursor. Bag quest items also show the quest name when that slot knows it. Optional vendor sell price for items.",
   defaultEnabled = true,
+  BuildOptions = BuildOptions,
   onEnable = function()
+    VendorPriceConfig()
     Install()
     questData:RegisterEvent("QUEST_DATA_LOAD_RESULT")
     questData:RegisterEvent("QUEST_LOG_UPDATE")

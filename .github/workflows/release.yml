@@ -1,0 +1,32 @@
+# BigWigs Mods packager — uploads tagged releases to CurseForge (and optional Wago)
+# and creates a GitHub Release. Secrets stay in repo Settings; never commit tokens.
+# Docs: docs/release-curseforge.md
+# Pattern: https://github.com/BigWigsMods/packager/wiki/GitHub-Actions-workflow
+name: Package and release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+# Packager needs write to create/update the GitHub Release for the tag.
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      # Packager also accepts CF_API_TOKEN; GHA wiki uses CF_API_KEY — match that name.
+      CF_API_KEY: ${{ secrets.CF_API_KEY }}
+      WAGO_API_TOKEN: ${{ secrets.WAGO_API_TOKEN }}
+      GITHUB_OAUTH: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Clone project
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Package and release
+        uses: BigWigsMods/packager@v2
