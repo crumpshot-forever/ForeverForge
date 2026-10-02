@@ -19,7 +19,78 @@ local ROW_GAP = 8
 local ROW_W = BODY_W - 22
 
 local LIST_TITLE = "Forever Forge"
-local LIST_SUB = "v" .. ForeverForge:AddonVersion() .. ". Enable, disable, and configure each tool."
+local SUPPORT_LABEL = "crumpshot-forever.github.io/ForeverForge"
+local SUPPORT_URL = "https://crumpshot-forever.github.io/ForeverForge"
+
+local function ListSubtitle()
+  return "v" .. FTK:AddonVersion() .. ". Enable, disable, and configure each tool."
+end
+
+local function TextBlockHeight(fs, fallback)
+  if fs and fs.GetStringHeight then
+    local ok, value = pcall(fs.GetStringHeight, fs)
+    if ok and type(value) == "number" and value >= 8 then
+      return value, true
+    end
+  end
+  return fallback, false
+end
+
+local function FooterText(bright)
+  local mute = bright and "ffcbbba6" or "ff9e8f75"
+  local link = bright and "fffff4d2" or "ffe0c36a"
+  return string.format(
+    "|c%sv%s|r    |c%sSupport & Feedback|r    |c%s%s|r",
+    mute,
+    FTK:AddonVersion(),
+    link,
+    link,
+    SUPPORT_LABEL
+  )
+end
+
+local function ShowSupportPopup()
+  if not StaticPopupDialogs then
+    FTK:Print(SUPPORT_URL)
+    return
+  end
+  if not StaticPopupDialogs.FOREVERFORGE_SUPPORT then
+    local closeLabel = "Close"
+    if type(OKAY) == "string" and OKAY ~= "" then
+      closeLabel = OKAY
+    end
+    StaticPopupDialogs.FOREVERFORGE_SUPPORT = {
+      text = "Support & Feedback\n\nPress Ctrl+C, then paste this address into your browser.",
+      button1 = closeLabel,
+      hasEditBox = true,
+      editBoxWidth = 320,
+      timeout = 0,
+      whileDead = 1,
+      hideOnEscape = 1,
+      preferredIndex = 3,
+      OnShow = function(dialog)
+        local box = dialog.editBox
+        if dialog.GetEditBox then
+          local ok, got = pcall(dialog.GetEditBox, dialog)
+          if ok and got then
+            box = got
+          end
+        end
+        if not box then
+          return
+        end
+        box:SetText(SUPPORT_URL)
+        box:SetFocus()
+        box:HighlightText()
+      end,
+    }
+  end
+  if StaticPopup_Show then
+    StaticPopup_Show("FOREVERFORGE_SUPPORT")
+  else
+    FTK:Print(SUPPORT_URL)
+  end
+end
 
 local function WithBackdrop(frame, bgR, bgG, bgB, bgA, edgeR, edgeG, edgeB, edgeA)
   if not frame.SetBackdrop then
@@ -158,11 +229,11 @@ local function GetRow(index)
   row.bg = bg
 
   local box = MakeCheckBox(row)
-  box:SetPoint("LEFT", 8, 0)
+  box:SetPoint("TOPLEFT", 8, -6)
   row.box = box
 
   local config = MakeTextButton(row, "Configure", 100)
-  config:SetPoint("RIGHT", -8, 0)
+  config:SetPoint("TOPRIGHT", -8, -4)
   config:SetFrameLevel(row:GetFrameLevel() + 2)
   row.config = config
 
@@ -182,9 +253,6 @@ local function GetRow(index)
   desc:SetJustifyH("LEFT")
   desc:SetJustifyV("TOP")
   desc:SetWordWrap(true)
-  if desc.SetMaxLines then
-    desc:SetMaxLines(2)
-  end
   row.desc = desc
 
   row:SetScript("OnEnter", function(self)
@@ -227,20 +295,20 @@ local function GetRow(index)
   return row
 end
 
-function Menu.Refresh()
+function Menu.Refresh(retry)
   if not Menu.content then
     return
   end
   local order = FTK.moduleOrder
   local count = #order
+  local y = 0
+  local needsMeasure = false
   local i
   for i = 1, count do
     local id = order[i]
     local module = FTK.modules[id]
     local row = GetRow(i)
     row.moduleId = id
-    row:ClearAllPoints()
-    row:SetPoint("TOPLEFT", Menu.content, "TOPLEFT", 0, -((i - 1) * (ROW_H + ROW_GAP)))
     row.name:SetText(FTK.Plain(module.name))
     local description = module.description or ""
     if module._error then
@@ -256,6 +324,19 @@ function Menu.Refresh()
       row.desc:SetTextColor(0.55, 0.52, 0.46)
     end
     row.desc:SetText(FTK.Plain(description))
+    local nameH, nameOk = TextBlockHeight(row.name, 16)
+    local descH, descOk = TextBlockHeight(row.desc, 12)
+    if not nameOk or not descOk then
+      needsMeasure = true
+    end
+    local rowH = nameH + descH + 16
+    if rowH < 52 then
+      rowH = 52
+    end
+    row:SetHeight(rowH)
+    row:ClearAllPoints()
+    row:SetPoint("TOPLEFT", Menu.content, "TOPLEFT", 0, -y)
+    y = y + rowH + ROW_GAP
     local enabled = FTK:IsEnabled(id)
     row.box:SetChecked(enabled)
     if enabled then
@@ -277,9 +358,19 @@ function Menu.Refresh()
 
   local height = 1
   if count > 0 then
-    height = (count * (ROW_H + ROW_GAP)) - ROW_GAP
+    height = y - ROW_GAP
   end
   Menu.content:SetHeight(height)
+  if Menu.scroll and Menu.scroll.UpdateScrollChildRect then
+    pcall(Menu.scroll.UpdateScrollChildRect, Menu.scroll)
+  end
+  if needsMeasure and not retry and C_Timer and C_Timer.After then
+    C_Timer.After(0, function()
+      if Menu.mode ~= "config" then
+        Menu.Refresh(true)
+      end
+    end)
+  end
 
   if Menu.empty and Menu.mode ~= "config" then
     if count == 0 then
@@ -295,7 +386,27 @@ function Menu.Refresh()
     end
   end
   if Menu.footer then
-    Menu.footer:SetText(string.format("v%s | /ff | crumpshot-forever.github.io/ForeverForge", FTK:AddonVersion()))
+    Menu.footer:SetText(FooterText(false))
+  end
+end
+
+local function LayoutChrome(retry)
+  if not (Menu.frame and Menu.title and Menu.subtitle and Menu.body and Menu.rule) then
+    return
+  end
+  local titleH, titleOk = TextBlockHeight(Menu.title, 18)
+  local subH, subOk = TextBlockHeight(Menu.subtitle, 14)
+  local ruleY = -12 - titleH - 6 - subH - 8
+  Menu.rule:ClearAllPoints()
+  Menu.rule:SetPoint("TOPLEFT", Menu.frame, "TOPLEFT", 14, ruleY)
+  Menu.rule:SetPoint("TOPRIGHT", Menu.frame, "TOPRIGHT", -14, ruleY)
+  Menu.body:ClearAllPoints()
+  Menu.body:SetPoint("TOPLEFT", Menu.frame, "TOPLEFT", PAD, ruleY - 8)
+  Menu.body:SetPoint("BOTTOMRIGHT", Menu.frame, "BOTTOMRIGHT", -PAD, 40)
+  if (not titleOk or not subOk) and not retry and C_Timer and C_Timer.After then
+    C_Timer.After(0, function()
+      LayoutChrome(true)
+    end)
   end
 end
 
@@ -314,8 +425,9 @@ function Menu.ShowList()
     Menu.title:SetText(LIST_TITLE)
   end
   if Menu.subtitle then
-    Menu.subtitle:SetText(LIST_SUB)
+    Menu.subtitle:SetText(ListSubtitle())
   end
+  LayoutChrome()
   Menu.Refresh()
 end
 
@@ -336,6 +448,7 @@ function Menu.ShowConfig(module)
     sub = "Settings"
   end
   Menu.subtitle:SetText(FTK.Plain(sub))
+  LayoutChrome()
 
   local page = Menu.configPages[module.id]
   if not page then
@@ -444,20 +557,16 @@ function Menu.Ensure()
   subtitle:SetWidth(FRAME_W - 90)
   subtitle:SetJustifyH("LEFT")
   subtitle:SetWordWrap(true)
-  if subtitle.SetMaxLines then
-    subtitle:SetMaxLines(2)
-  end
   subtitle:SetTextColor(0.75, 0.7, 0.6)
-  subtitle:SetText(LIST_SUB)
+  subtitle:SetText(ListSubtitle())
   Menu.subtitle = subtitle
 
   local rule = frame:CreateTexture(nil, "ARTWORK")
-  rule:SetPoint("TOPLEFT", 14, -58)
-  rule:SetPoint("TOPRIGHT", -14, -58)
   rule:SetHeight(1)
   if rule.SetColorTexture then
     rule:SetColorTexture(0.78, 0.64, 0.32, 0.75)
   end
+  Menu.rule = rule
 
   local ruleBottom = frame:CreateTexture(nil, "ARTWORK")
   ruleBottom:SetPoint("BOTTOMLEFT", 14, 32)
@@ -468,8 +577,7 @@ function Menu.Ensure()
   end
 
   local body = CreateFrame("Frame", nil, frame)
-  body:SetPoint("TOPLEFT", PAD, -66)
-  body:SetPoint("BOTTOMRIGHT", -PAD, 40)
+  Menu.body = body
   body:EnableMouseWheel(true)
   body:SetScript("OnMouseWheel", function(_, delta)
     if Menu.mode == "config" and Menu.configScroll then
@@ -551,13 +659,32 @@ function Menu.Ensure()
   configScroll:SetScrollChild(configChild)
   Menu.configChild = configChild
 
-  local footer = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-  footer:SetPoint("BOTTOM", 0, 12)
-  footer:SetWidth(FRAME_W - 24)
+  local footerBtn = CreateFrame("Button", nil, frame)
+  footerBtn:SetPoint("BOTTOM", 0, 6)
+  footerBtn:SetSize(FRAME_W - 24, 22)
+  footerBtn:SetFrameLevel(drag:GetFrameLevel() + 6)
+  local footer = footerBtn:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+  footer:SetAllPoints()
   footer:SetJustifyH("CENTER")
+  footer:SetJustifyV("MIDDLE")
   footer:SetWordWrap(false)
-  footer:SetTextColor(0.62, 0.56, 0.46)
   Menu.footer = footer
+  footerBtn:SetScript("OnClick", ShowSupportPopup)
+  footerBtn:SetScript("OnEnter", function(self)
+    footer:SetText(FooterText(true))
+    if GameTooltip and GameTooltip.SetOwner then
+      GameTooltip:SetOwner(self, "ANCHOR_TOP")
+      GameTooltip:SetText("Click to copy the support address", 1, 0.92, 0.65)
+      GameTooltip:Show()
+    end
+  end)
+  footerBtn:SetScript("OnLeave", function()
+    footer:SetText(FooterText(false))
+    if GameTooltip and GameTooltip.Hide then
+      GameTooltip:Hide()
+    end
+  end)
+  footer:SetText(FooterText(false))
 
   frame:SetScript("OnShow", function(self)
     self:Raise()

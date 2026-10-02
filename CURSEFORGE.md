@@ -55,14 +55,14 @@ When you open a merchant, Auto-sell junk sells poor-quality grey items one at a 
 
 Quest items are kept. Items with no sell price are kept. Closing the merchant window stops the selling. Turning the tool off stops it as well.
 
-## Ninjee Loot
+## Turbo Loot
 
-Ninjee Loot takes every item on a corpse at once when auto-loot should run, instead of one click per item.
+Turbo Loot takes every item on a corpse at once when auto-loot should run, instead of one click per item.
 
 - If auto-loot is on, opening loot takes the corpse. Hold the auto-loot key and that corpse stays a normal window.
 - If auto-loot is off, the window stays manual. Hold the auto-loot key and that corpse is taken immediately.
 
-A second corpse opened a moment too soon is taken as soon as the game will accept it. Bind-on-pickup questions are left for you to answer. Ninjee Loot does not change your auto-loot setting.
+A second corpse opened a moment too soon is taken as soon as the game will accept it. Bind-on-pickup questions are left for you to answer. Turbo Loot does not change your auto-loot setting.
 
 ## ID Tooltips
 

@@ -43,10 +43,11 @@ _G.ForeverForge = FTK
 -- settings would break, or a new Forever client era is certified.
 -- Y goes up by 1 for a new tool, and Z returns to 0.
 -- Z goes up by 1 for a fix or small change, and Y stays.
--- Keep this string identical to ## Version in ForeverForge.toc.
+-- The TOC keeps ## Version: @project-version@ so a packaged zip is stamped
+-- from the git tag. This fallback is the menu version on a raw checkout.
 -- Publish a version by committing it and tagging vX.Y.Z on GitHub.
 -- Do not rename the live ForeverForge folder.
-FTK.VERSION = "1.3.0"
+FTK.VERSION = "1.4.0"
 FTK.modules = {}
 FTK.moduleOrder = {}
 
@@ -223,11 +224,41 @@ function FTK:AddonVersion()
   end
   if getter then
     local ok, version = pcall(getter, ADDON, "Version")
-    if ok and type(version) == "string" and version ~= "" then
+    -- A raw checkout still has the packager token. A zip replaces it.
+    if ok and type(version) == "string" and version ~= "" and version ~= "@project-version@" then
       return version
     end
   end
   return self.VERSION
+end
+
+function FTK:MaybeOpenMenu()
+  if self._menuOfferChecked then
+    return
+  end
+  self._menuOfferChecked = true
+  self:InitDB()
+  local version = self:AddonVersion()
+  if type(version) ~= "string" or version == "" then
+    return
+  end
+  local seen = self.db.menu and self.db.menu.seenVersion
+  if seen == version then
+    return
+  end
+  local function open()
+    if self.OpenMenu then
+      self:OpenMenu()
+    end
+    if self.db and type(self.db.menu) == "table" then
+      self.db.menu.seenVersion = version
+    end
+  end
+  if C_Timer and C_Timer.After then
+    C_Timer.After(1, open)
+  else
+    open()
+  end
 end
 
 function FTK:PrintHelp()
@@ -328,6 +359,9 @@ events:SetScript("OnEvent", function(_, event, arg1)
     FTK:InitMinimap()
   end
   FTK:ApplyModuleStates()
+  if event == "PLAYER_ENTERING_WORLD" then
+    FTK:MaybeOpenMenu()
+  end
 end)
 
 _G.SLASH_FOREVERFORGE1 = "/ff"
