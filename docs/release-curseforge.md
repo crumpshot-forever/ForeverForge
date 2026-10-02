@@ -4,6 +4,18 @@ Forever Forge publishes to [CurseForge](https://www.curseforge.com/wow/addons/fo
 
 Do **not** put API tokens in the repo, workflow files, or docs. Secrets live only in GitHub Actions secrets (and optionally a local `.env` you never commit).
 
+## Workflow file on the branch
+
+Canonical path: `.github/workflows/release.yml` (BigWigs packager `@v2`, trigger on `v*` tags + `workflow_dispatch`).
+
+If that path is missing on the PR branch (GitHub OAuth apps without the `workflow` scope cannot push files under `.github/workflows/`), copy the checked-in example once via the GitHub web UI:
+
+1. Open [docs/examples/release.yml](../examples/release.yml) on this branch.
+2. Repo → **Add file** → **Create new file** → path `.github/workflows/release.yml`.
+3. Paste the example contents → commit to this branch (or merge this PR, then add the file on `main` before the first tag).
+
+After the file exists once under `.github/workflows/`, later edits from a token that has `workflow` scope (or the web UI) can maintain it.
+
 ## Why packager CI (not CF GitHub App alone)
 
 CurseForge’s GitHub App / tag auto-import can miss tags or stall with no actionable log in this repo. Packager CI is durable: every matching tag runs an Actions job you can inspect, uploads with the CurseForge API, and also attaches a GitHub Release asset. Prefer that path for post-UAT releases.
