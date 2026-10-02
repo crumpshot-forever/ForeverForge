@@ -42,15 +42,23 @@ local function PlainString(value)
   return value
 end
 
+-- Older clients return 1 for a yes flag. Retail returns true.
+local function ApiTrue(value)
+  if IsSecret(value) then
+    return false
+  end
+  return value == true or value == 1
+end
+
 local function ShiftHeld()
   if type(IsShiftKeyDown) ~= "function" then
     return false
   end
   local ok, down = pcall(IsShiftKeyDown)
-  if not ok or IsSecret(down) then
+  if not ok then
     return false
   end
-  return down == true
+  return ApiTrue(down)
 end
 
 local function GossipQuestCount()
@@ -94,9 +102,13 @@ local function GossipOptions()
           local gtype = PlainString(opt.type) or ""
           list[#list + 1] = {
             index = i,
+            orderIndex = PlainNumber(opt.orderIndex),
             optionID = PlainNumber(opt.gossipOptionID) or PlainNumber(opt.optionID),
             name = PlainString(opt.name) or "",
             gtype = string.lower(gtype),
+            icon = PlainNumber(opt.icon),
+            overrideIcon = PlainNumber(opt.overrideIconID),
+            status = PlainNumber(opt.status),
           }
         end
       end
@@ -136,33 +148,68 @@ local function SelectOption(entry)
       return true
     end
   end
+  -- 10.0+ SelectOption needs gossipOptionID, which can be nil. orderIndex can be 0.
+  if entry.orderIndex ~= nil and C_GossipInfo and C_GossipInfo.SelectOptionByIndex then
+    local ok = pcall(C_GossipInfo.SelectOptionByIndex, entry.orderIndex)
+    if ok then
+      return true
+    end
+  end
   if type(SelectGossipOption) == "function" and entry.index then
     return pcall(SelectGossipOption, entry.index)
   end
   return false
 end
 
-local function IsTaxiType(gtype, name)
-  gtype = PlainString(gtype) or ""
-  name = PlainString(name) or ""
-  gtype = string.lower(gtype)
-  name = string.lower(name)
-  if gtype == "taxi" or gtype == "binder" then
-    -- binder is hearthstone innkeeper — do NOT treat as taxi.
-    return gtype == "taxi"
+-- Interface/GossipFrame/TaxiGossipIcon.blp. GetOptions dropped the type field in 10.0.
+local TAXI_ICON = 132057
+
+local function OptionBlocked(entry)
+  -- GossipOptionStatus: 1 Unavailable, 2 Locked.
+  return entry.status == 1 or entry.status == 2
+end
+
+local function IsTaxiEntry(entry)
+  if not entry or OptionBlocked(entry) then
+    return false
   end
-  -- Some clients omit type; flight gossip often contains these phrases.
+  local gtype = entry.gtype or ""
+  if gtype == "binder" then
+    return false
+  end
+  if gtype == "taxi" or entry.icon == TAXI_ICON or entry.overrideIcon == TAXI_ICON then
+    return true
+  end
+  local name = string.lower(entry.name or "")
   if name:find("fly ", 1, true) or name:find("flight", 1, true) or name:find("taxi", 1, true) then
     return true
   end
   return false
 end
 
-local function HandleGossip()
-  if not FTK:IsEnabled(MODULE_ID) then
+local function GossipOpen()
+  local gossip = _G.GossipFrame
+  if not gossip or not gossip.IsShown then
+    return true
+  end
+  local ok, shown = pcall(gossip.IsShown, gossip)
+  if not ok or IsSecret(shown) then
+    return true
+  end
+  return shown == true or shown == 1
+end
+
+local function HandleGossip(attempt)
+  attempt = attempt or 0
+  if not FTK:IsEnabled(MODULE_ID) or ShiftHeld() then
     return
   end
-  if ShiftHeld() then
+  if not GossipOpen() then
+    if attempt < 4 and C_Timer and C_Timer.After then
+      C_Timer.After(0.1, function()
+        HandleGossip(attempt + 1)
+      end)
+    end
     return
   end
   local options = GossipOptions()
@@ -172,15 +219,23 @@ local function HandleGossip()
   local i
   for i = 1, #options do
     local entry = options[i]
-    if IsTaxiType(entry.gtype, entry.name) then
+    if IsTaxiEntry(entry) then
       SelectOption(entry)
       return
     end
   end
 
   -- Gossip Skip: exactly one non-quest option and no quest lines on this gossip.
-  if quests == 0 and #options == 1 then
+  if quests == 0 and #options == 1 and not OptionBlocked(options[1]) then
     SelectOption(options[1])
+    return
+  end
+
+  -- Forever sometimes fires GOSSIP_SHOW before the option list is filled.
+  if #options == 0 and attempt < 4 and C_Timer and C_Timer.After then
+    C_Timer.After(0.1, function()
+      HandleGossip(attempt + 1)
+    end)
   end
 end
 

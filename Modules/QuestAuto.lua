@@ -34,15 +34,30 @@ local function PlainNumber(value)
   return value
 end
 
+local function PlainString(value)
+  if IsSecret(value) or type(value) ~= "string" or value == "" then
+    return nil
+  end
+  return value
+end
+
+-- Older clients return 1 for a yes flag. Retail returns true.
+local function ApiTrue(value)
+  if IsSecret(value) then
+    return false
+  end
+  return value == true or value == 1
+end
+
 local function ShiftHeld()
   if type(IsShiftKeyDown) ~= "function" then
     return false
   end
   local ok, down = pcall(IsShiftKeyDown)
-  if not ok or IsSecret(down) then
+  if not ok then
     return false
   end
-  return down == true
+  return ApiTrue(down)
 end
 
 local function Later(callback)
@@ -54,30 +69,38 @@ local function Later(callback)
 end
 
 local function QuestMoneyCost()
-  if type(GetQuestMoneyToGet) == "function" then
-    local ok, copper = pcall(GetQuestMoneyToGet)
-    copper = ok and PlainNumber(copper) or nil
-    if copper and copper > 0 then
-      return copper
-    end
+  if type(GetQuestMoneyToGet) ~= "function" then
+    return 0
   end
-  return 0
+  local ok, copper = pcall(GetQuestMoneyToGet)
+  if not ok or IsSecret(copper) then
+    return nil
+  end
+  copper = PlainNumber(copper)
+  if copper == nil then
+    return nil
+  end
+  return copper
 end
 
 local function RewardChoices()
-  if type(GetNumQuestChoices) == "function" then
-    local ok, n = pcall(GetNumQuestChoices)
-    return ok and PlainNumber(n) or 0
+  if type(GetNumQuestChoices) ~= "function" then
+    return nil
   end
-  return 0
+  local ok, n = pcall(GetNumQuestChoices)
+  if not ok or IsSecret(n) then
+    return nil
+  end
+  return PlainNumber(n)
 end
 
 local function Accept()
   if not FTK:IsEnabled(MODULE_ID) or ShiftHeld() then
     return
   end
-  if QuestMoneyCost() > 0 then
-    -- Player must confirm paid quests.
+  local cost = QuestMoneyCost()
+  if cost == nil or cost > 0 then
+    -- Player must confirm paid quests. A secret cost is also left alone.
     return
   end
   if type(AcceptQuest) == "function" then
@@ -92,8 +115,8 @@ local function Progress()
   local complete = false
   if type(IsQuestCompletable) == "function" then
     local ok, value = pcall(IsQuestCompletable)
-    if ok and not IsSecret(value) then
-      complete = value == true
+    if ok then
+      complete = ApiTrue(value)
     end
   end
   if complete and type(CompleteQuest) == "function" then
@@ -106,23 +129,81 @@ local function Complete()
     return
   end
   local choices = RewardChoices()
-  if choices and choices > 1 then
-    -- Multi-reward: player must pick.
+  if choices == nil or choices > 1 then
+    -- Unknown or multi-reward: player must pick.
     return
   end
-  if type(GetQuestReward) == "function" then
-    if choices == 0 then
-      if not pcall(GetQuestReward, 1) then
-        pcall(GetQuestReward)
-      end
-      return
-    end
-    pcall(GetQuestReward, 1)
+  if type(GetQuestReward) ~= "function" then
+    return
   end
+  if choices == 1 then
+    pcall(GetQuestReward, 1)
+    return
+  end
+  -- No item choice. Retail accepts no argument; some clients want 0 or 1.
+  if pcall(GetQuestReward) then
+    return
+  end
+  if pcall(GetQuestReward, 0) then
+    return
+  end
+  pcall(GetQuestReward, 1)
+end
+
+-- Same taxi marker as NPC Assist. When that module is on, it owns the flight option.
+local TAXI_ICON = 132057
+
+local function NameLooksLikeTaxi(name)
+  name = string.lower(PlainString(name) or "")
+  return name:find("fly ", 1, true) or name:find("flight", 1, true) or name:find("taxi", 1, true)
+end
+
+local function TaxiPresent()
+  if C_GossipInfo and C_GossipInfo.GetOptions then
+    local ok, options = pcall(C_GossipInfo.GetOptions)
+    if ok and type(options) == "table" then
+      local i
+      for i = 1, #options do
+        local opt = options[i]
+        if type(opt) == "table" then
+          local gtype = string.lower(PlainString(opt.type) or "")
+          local status = PlainNumber(opt.status)
+          local blocked = status == 1 or status == 2
+          if gtype ~= "binder" and not blocked then
+            local icon = PlainNumber(opt.icon)
+            local overrideIcon = PlainNumber(opt.overrideIconID)
+            if gtype == "taxi" or icon == TAXI_ICON or overrideIcon == TAXI_ICON or NameLooksLikeTaxi(opt.name) then
+              return true
+            end
+          end
+        end
+      end
+    end
+  end
+  if type(GetGossipOptions) == "function" then
+    local ok, values = pcall(function()
+      return { GetGossipOptions() }
+    end)
+    if ok and type(values) == "table" then
+      local i = 1
+      while values[i] do
+        local gtype = string.lower(PlainString(values[i + 1]) or "")
+        if gtype == "taxi" or NameLooksLikeTaxi(values[i]) then
+          return true
+        end
+        i = i + 2
+      end
+    end
+  end
+  return false
 end
 
 local function GossipQuests()
   if not FTK:IsEnabled(MODULE_ID) or ShiftHeld() then
+    return
+  end
+  -- Flight master with a quest: NPC Assist opens the taxi map. Do not steal it.
+  if FTK:IsEnabled("NpcAssist") and TaxiPresent() then
     return
   end
   -- Prefer turning in active completable quests, then accepting available.
@@ -138,14 +219,13 @@ local function GossipQuests()
             if IsSecret(done) then
               done = false
             end
-            if done == true then
+            -- SelectActiveQuest takes a quest id. The loop index is not an id.
+            if ApiTrue(done) then
               local id = PlainNumber(q.questID) or PlainNumber(q.questId)
-              if id and C_GossipInfo.SelectActiveQuest then
+              if id then
                 pcall(C_GossipInfo.SelectActiveQuest, id)
                 return
               end
-              pcall(C_GossipInfo.SelectActiveQuest, i)
-              return
             end
           end
         end
@@ -164,10 +244,8 @@ local function GossipQuests()
         end
         if id then
           pcall(C_GossipInfo.SelectAvailableQuest, id)
-        else
-          pcall(C_GossipInfo.SelectAvailableQuest, 1)
+          return
         end
-        return
       elseif ok and type(list) == "table" and #list > 1 then
         -- Multiple available: do not auto-pick.
         return
