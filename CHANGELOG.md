@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.3.0
+
+- **NPC Gossip Skip.** Skips single non-quest gossip and opens the flight map at flight masters. Hold Shift for normal talk.
+- **Auto Quest.** Accepts and turns in quests. Hold Shift to handle them yourself. Skips gold-cost quests and multi-reward turn-ins.
+
 ## 1.1.0
 
 - **Repair All.** Repairs all gear when you open a repair merchant. Optional guild bank funds via Configure. Skips vendors that cannot repair. Does not change the merchant or bag UI.
