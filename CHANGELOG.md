@@ -4,6 +4,7 @@
 
 - **Repair All.** Repairs all gear when you open a repair merchant. Optional guild bank funds via Configure. Skips vendors that cannot repair. Does not change the merchant or bag UI.
 - **Vendor price on ID Tooltips.** Item tooltips can show unit and stack vendor sell price. Toggle under ID Tooltips → Configure → Vendor price (on by default).
+- **Quiet Errors.** Hides a curated set of combat spam on the floating error frame (out of range, not ready / cooldown, resource shortfalls, and similar attack spam). Matched against locale-safe `ERR_*` globals. Other errors still show. One `/ff` switch (default on).
 
 ## 1.0.8
 
