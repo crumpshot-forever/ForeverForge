@@ -1,6 +1,12 @@
 # Changelog
 
+## 1.1.0
+
+- **Repair All.** Repairs all gear when you open a repair merchant. Optional guild bank funds via Configure. Skips vendors that cannot repair. Does not change the merchant or bag UI.
+- **Vendor price on ID Tooltips.** Item tooltips can show unit and stack vendor sell price. Toggle under ID Tooltips → Configure → Vendor price (on by default).
+
 ## 1.0.8
+
 
 - No feature changes. This release checks that CurseForge receives a new tag on its own.
 

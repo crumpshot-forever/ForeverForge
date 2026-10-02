@@ -2,7 +2,7 @@
 
 One menu of light-weight tools for WoW: Forever. Each tool has its own on/off switch. The normal bags, bank, loot window, party frames, and tooltips stay in place.
 
-Current version: **1.0.8**.
+Current version: **1.1.0**.
 
 Open the menu with the minimap button, or type `/ff`, `/forge`, or `/foreverforge`.
 
@@ -10,7 +10,7 @@ Open the menu with the minimap button, or type `/ff`, `/forge`, or `/foreverforg
 
 1. Download this repository and keep the folder named `ForeverForge`.
 2. Put `ForeverForge` in `Interface\AddOns`.
-3. Restart the game. The menu should show `v1.0.8`.
+3. Restart the game. The menu should show `v1.1.0`.
 
 Do not rename the folder. The game only loads it when the folder name matches `ForeverForge.toc`.
 
@@ -20,8 +20,9 @@ Do not rename the folder. The game only loads it when the folder name matches `F
 - **Clean Bank.** The same sections on the bank. Labels stay short so the search box remains usable.
 - **Quick Swap.** While the bank is open, move one whole section between your bags and the bank. The hearthstone stays in your bags.
 - **Auto-sell junk.** Sell grey junk when a merchant opens. Quest items stay.
+- **Repair All.** Repair all gear at a repair merchant. Optional guild funds. Skips non-repair vendors.
 - **Ninjee Loot.** Take a corpse at once when auto-loot should run. Bind-on-pickup prompts stay yours to answer.
-- **ID Tooltips.** Spell, item, NPC, and quest IDs. A quest item can show the quest name.
+- **ID Tooltips.** Spell, item, NPC, and quest IDs. A quest item can show the quest name. Optional vendor sell price (unit and stack).
 - **SpellMaxer.** A local line when one of your own action-bar spells is a lower rank than you can use.
 - **Enemy Player Alert.** A short sound and a local line for an enemy player in nameplate range. A guild name is included when the game provides it. The same character is skipped for 1 minute.
 - **Click Heal.** For a Priest, Druid, Paladin, or Shaman, modified clicks on party and raid frames cast heals. Your own character frame is left alone.
