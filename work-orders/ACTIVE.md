@@ -26,7 +26,6 @@ Pull ForeverForge, open work-orders/ACTIVE.md, checkout the PR branch listed the
 ## Queue after ACTIVE
 
 1. C Mail Kit — [WO-C](uat/WO-C-mail-kit.md) · PR #15  
-2. D NPC Flow — [WO-D](uat/WO-D-npc-flow.md) · PR #16  
 3. E Social — [WO-E](uat/WO-E-social.md) · PR #17  
 4. F Durability — [WO-F](uat/WO-F-durability.md) · PR #18  
 5. G Chat Kit — [WO-G](uat/WO-G-chat-kit.md) · PR #22  
