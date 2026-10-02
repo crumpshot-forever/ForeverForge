@@ -4,9 +4,11 @@
 ## Title: Forever Forge
 ## Notes: Menu and minimap button for independent in-game tools.
 ## Author: Forever Forge
-## Version: 1.1.0
+## Version: @project-version@
 ## IconTexture: Interface\AddOns\ForeverForge\Textures\Minimap
 ## SavedVariables: ForeverForgeDB
+## X-Curse-Project-ID: 1714676
+## X-Wago-ID: 96EXLYNg
 
 Core.lua
 Minimap.lua

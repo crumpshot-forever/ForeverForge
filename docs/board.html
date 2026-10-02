@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sprint board · Forever Forge</title>
+  <meta name="description" content="Forever Forge sprint board — ideation through release, driven by GitHub Issues lane labels.">
+  <style>
+    :root {
+      --bg: #0b0a09;
+      --bg-2: #161310;
+      --panel: #1c1814;
+      --line: rgba(232, 197, 106, 0.35);
+      --gold: #e8c56a;
+      --gold-deep: #b8893e;
+      --text: #f4ecdf;
+      --muted: #cbbfaa;
+      --max: 1100px;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--text);
+      background:
+        radial-gradient(1200px 500px at 50% -10%, rgba(184, 137, 62, 0.18), transparent 60%),
+        var(--bg);
+      font-family: "Segoe UI", Candara, sans-serif;
+      font-size: 1.05rem;
+      line-height: 1.55;
+    }
+    a { color: var(--gold); }
+    a:hover { color: #fff3cc; }
+    .wrap { width: min(var(--max), calc(100% - 32px)); margin: 0 auto; }
+    header.hero {
+      padding: 36px 0 8px;
+      text-align: center;
+    }
+    header.hero h1 {
+      margin: 0;
+      font-family: Georgia, "Palatino Linotype", serif;
+      font-weight: 500;
+      font-size: 2rem;
+      letter-spacing: 0.02em;
+      color: var(--gold);
+    }
+    .lede {
+      max-width: 42rem;
+      margin: 10px auto 0;
+      color: var(--muted);
+      font-size: 1.05rem;
+    }
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      justify-content: center;
+      margin: 22px 0 8px;
+    }
+    .btn {
+      display: inline-block;
+      padding: 10px 16px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      text-decoration: none;
+      color: var(--text);
+      background: rgba(232, 197, 106, 0.08);
+      font-size: 0.95rem;
+    }
+    .btn.solid {
+      background: linear-gradient(180deg, #f0d48a, #c49645);
+      color: #1a1208;
+      font-weight: 700;
+      border-color: transparent;
+    }
+    .btn:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
+    .rule {
+      width: 100%;
+      height: 2px;
+      margin: 22px auto;
+      border: 0;
+      background: linear-gradient(90deg, transparent, var(--gold) 20%, var(--gold) 80%, transparent);
+      box-shadow: 0 0 14px rgba(232, 197, 106, 0.45);
+    }
+    .note {
+      margin: 0 auto 18px;
+      padding: 14px 16px;
+      max-width: 48rem;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.95rem;
+      background: rgba(232, 197, 106, 0.05);
+      border: 1px solid rgba(232, 197, 106, 0.2);
+      border-radius: 12px;
+    }
+    .status {
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.9rem;
+      margin: 0 0 14px;
+      min-height: 1.4em;
+    }
+    .status.error { color: #e8a06a; }
+    .status.ok { color: var(--gold); }
+
+    /* Delivery packages */
+    .packages {
+      margin: 0 0 28px;
+      padding: 20px 18px;
+      background:
+        linear-gradient(180deg, rgba(232, 197, 106, 0.08), rgba(232, 197, 106, 0.02)),
+        var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+    }
+    .packages h2 {
+      margin: 0 0 6px;
+      font-family: Georgia, "Palatino Linotype", serif;
+      font-weight: 500;
+      color: var(--gold);
+      font-size: 1.45rem;
+      text-align: center;
+    }
+    .packages .pkg-note {
+      margin: 0 0 14px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+    .pkg-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.95rem;
+    }
+    .pkg-table th,
+    .pkg-table td {
+      padding: 10px 12px;
+      text-align: left;
+      border-bottom: 1px solid rgba(232, 197, 106, 0.15);
+    }
+    .pkg-table th {
+      color: var(--gold);
+      font-weight: 600;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .pkg-table tr:last-child td { border-bottom: 0; }
+    .pkg-id {
+      font-weight: 700;
+      color: var(--gold);
+      white-space: nowrap;
+    }
+    .badge {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      background: rgba(232, 197, 106, 0.15);
+      border: 1px solid var(--line);
+      color: var(--gold);
+    }
+
+    /* Kanban */
+    .board-scroll {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      padding-bottom: 8px;
+      margin: 0 -8px;
+    }
+    .board {
+      display: flex;
+      gap: 14px;
+      min-width: 920px;
+      padding: 0 8px 4px;
+      align-items: flex-start;
+    }
+    .col {
+      flex: 1 1 0;
+      min-width: 168px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 12px 10px 14px;
+    }
+    .col h3 {
+      margin: 0 0 10px;
+      font-family: Georgia, "Palatino Linotype", serif;
+      font-weight: 500;
+      font-size: 1.05rem;
+      color: var(--gold);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .col .count {
+      font-family: "Segoe UI", Candara, sans-serif;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--muted);
+      background: rgba(232, 197, 106, 0.1);
+      border-radius: 999px;
+      padding: 2px 8px;
+    }
+    .cards {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      min-height: 48px;
+    }
+    .card {
+      display: block;
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: var(--bg-2);
+      border: 1px solid rgba(232, 197, 106, 0.22);
+      text-decoration: none;
+      color: var(--text);
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .card:hover {
+      border-color: var(--gold);
+      background: rgba(232, 197, 106, 0.08);
+      color: #fff3cc;
+    }
+    .card .num {
+      display: block;
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--gold-deep);
+      margin-bottom: 4px;
+      letter-spacing: 0.02em;
+    }
+    .card .title {
+      font-size: 0.9rem;
+      line-height: 1.35;
+    }
+    .empty {
+      color: var(--muted);
+      font-size: 0.85rem;
+      padding: 8px 4px;
+      opacity: 0.7;
+    }
+
+    footer {
+      margin-top: 28px;
+      padding: 24px 0 48px;
+      color: var(--muted);
+      text-align: center;
+      border-top: 1px solid rgba(232, 197, 106, 0.2);
+      font-size: 0.95rem;
+    }
+    code { color: var(--gold); font-size: 0.9em; }
+
+    .status-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      justify-content: center;
+      margin: 0 0 14px;
+    }
+    .status-row .status { margin: 0; }
+    button.btn {
+      font: inherit;
+      cursor: pointer;
+    }
+    button.btn:disabled { opacity: 0.5; cursor: wait; }
+
+    @media (max-width: 720px) {
+      header.hero { padding-top: 24px; }
+      header.hero h1 { font-size: 1.6rem; }
+      /* Keep Status visible; drop Name on narrow screens */
+      .pkg-table th:nth-child(2),
+      .pkg-table td:nth-child(2) { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <header class="hero">
+    <div class="wrap">
+      <h1>Sprint board</h1>
+      <p class="lede">Kanban view of Forever Forge work. Columns follow GitHub Issues labeled <code>lane:*</code>.</p>
+      <div class="actions">
+        <a class="btn" href="index.html">← Home</a>
+        <a class="btn solid" href="https://github.com/crumpshot-forever/ForeverForge/issues">Issues</a>
+        <a class="btn" href="https://github.com/crumpshot-forever/ForeverForge">Repo</a>
+      </div>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <p class="note">
+      Source of record also lives in <code>personal-os/sprint-board.md</code>.
+      Issues with <code>lane:ideation</code>, <code>lane:approved</code>, <code>lane:uat</code>, <code>lane:released</code>, or <code>lane:tabled</code> drive this view.
+    </p>
+
+    <section class="packages" aria-labelledby="pkg-heading">
+      <h2 id="pkg-heading">Delivery packages</h2>
+      <p class="pkg-note">Non-monolithic UAT queue — each package ships as its own PR.</p>
+      <div style="overflow-x:auto">
+        <table class="pkg-table">
+          <thead>
+            <tr>
+              <th>Pkg</th>
+              <th>Name</th>
+              <th>Status</th>
+              <th>PR</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="pkg-id">A</td>
+              <td>Vendor Stop</td>
+              <td><span class="badge">UAT</span></td>
+              <td><a href="https://github.com/crumpshot-forever/ForeverForge/pull/13">#13</a></td>
+            </tr>
+            <tr>
+              <td class="pkg-id">B</td>
+              <td>Quiet Errors</td>
+              <td><span class="badge">UAT</span></td>
+              <td><a href="https://github.com/crumpshot-forever/ForeverForge/pull/14">#14</a></td>
+            </tr>
+            <tr>
+              <td class="pkg-id">C</td>
+              <td>Mail Kit</td>
+              <td><span class="badge">UAT</span></td>
+              <td><a href="https://github.com/crumpshot-forever/ForeverForge/pull/15">#15</a></td>
+            </tr>
+            <tr>
+              <td class="pkg-id">D</td>
+              <td>NPC Flow</td>
+              <td><span class="badge">UAT</span></td>
+              <td><a href="https://github.com/crumpshot-forever/ForeverForge/pull/16">#16</a></td>
+            </tr>
+            <tr>
+              <td class="pkg-id">E</td>
+              <td>Social</td>
+              <td><span class="badge">UAT</span></td>
+              <td><a href="https://github.com/crumpshot-forever/ForeverForge/pull/17">#17</a></td>
+            </tr>
+            <tr>
+              <td class="pkg-id">F</td>
+              <td>Durability Warning</td>
+              <td><span class="badge">UAT</span></td>
+              <td><a href="https://github.com/crumpshot-forever/ForeverForge/pull/18">#18</a></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <hr class="rule">
+
+    <div class="status-row">
+      <p class="status" id="board-status" aria-live="polite">Loading issues…</p>
+      <button type="button" class="btn" id="board-refresh">Refresh</button>
+    </div>
+
+    <div class="board-scroll">
+      <div class="board" id="board" role="list">
+        <!-- columns filled by JS -->
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <div class="wrap">
+      <p>
+        <a href="index.html">Forever Forge home</a>
+        · <a href="https://github.com/crumpshot-forever/ForeverForge">Source</a>
+        · MIT license
+      </p>
+    </div>
+  </footer>
+
+  <script>
+    (function () {
+      var LANES = [
+        { key: "ideation", label: "Ideation" },
+        { key: "approved", label: "Approved" },
+        { key: "uat", label: "UAT" },
+        { key: "released", label: "Released" },
+        { key: "tabled", label: "Tabled" }
+      ];
+      // state=all so closed lane:released issues still appear
+      var API =
+        "https://api.github.com/repos/crumpshot-forever/ForeverForge/issues?state=all&per_page=100";
+      var SNAPSHOT = "board-data.json";
+
+      var boardEl = document.getElementById("board");
+      var statusEl = document.getElementById("board-status");
+      var refreshBtn = document.getElementById("board-refresh");
+
+      function laneOf(issue) {
+        var labels = issue.labels || [];
+        for (var i = 0; i < labels.length; i++) {
+          var name = typeof labels[i] === "string" ? labels[i] : labels[i].name;
+          if (!name) continue;
+          if (name.indexOf("lane:") === 0) {
+            return name.slice(5);
+          }
+        }
+        return null;
+      }
+
+      function normalize(raw) {
+        return (raw || [])
+          .filter(function (item) {
+            return !item.pull_request;
+          })
+          .map(function (item) {
+            var labels = (item.labels || []).map(function (l) {
+              return typeof l === "string" ? l : l.name;
+            });
+            return {
+              number: item.number,
+              title: item.title,
+              html_url: item.html_url,
+              labels: labels
+            };
+          });
+      }
+
+      function render(issues, sourceLabel) {
+        var byLane = {};
+        LANES.forEach(function (l) {
+          byLane[l.key] = [];
+        });
+
+        issues.forEach(function (issue) {
+          var lane = laneOf(issue);
+          if (lane && byLane[lane]) {
+            byLane[lane].push(issue);
+          }
+        });
+
+        boardEl.innerHTML = "";
+        LANES.forEach(function (l) {
+          var col = document.createElement("section");
+          col.className = "col";
+          col.setAttribute("role", "listitem");
+          col.setAttribute("aria-label", l.label);
+
+          var cards = byLane[l.key];
+          var h = document.createElement("h3");
+          h.innerHTML =
+            l.label +
+            ' <span class="count">' +
+            cards.length +
+            "</span>";
+          col.appendChild(h);
+
+          var list = document.createElement("div");
+          list.className = "cards";
+
+          if (cards.length === 0) {
+            var empty = document.createElement("p");
+            empty.className = "empty";
+            empty.textContent = "None";
+            list.appendChild(empty);
+          } else {
+            cards
+              .slice()
+              .sort(function (a, b) {
+                return a.number - b.number;
+              })
+              .forEach(function (issue) {
+                var a = document.createElement("a");
+                a.className = "card";
+                a.href = issue.html_url;
+                a.target = "_blank";
+                a.rel = "noopener noreferrer";
+                a.innerHTML =
+                  '<span class="num">#' +
+                  issue.number +
+                  '</span><span class="title"></span>';
+                a.querySelector(".title").textContent = issue.title;
+                list.appendChild(a);
+              });
+          }
+
+          col.appendChild(list);
+          boardEl.appendChild(col);
+        });
+
+        statusEl.className = "status ok";
+        statusEl.textContent = sourceLabel;
+        if (refreshBtn) refreshBtn.disabled = false;
+      }
+
+      function loadSnapshot(reason) {
+        return fetch(SNAPSHOT)
+          .then(function (r) {
+            if (!r.ok) throw new Error("snapshot " + r.status);
+            return r.json();
+          })
+          .then(function (data) {
+            render(
+              normalize(data),
+              "Showing embedded snapshot" +
+                (reason ? " (" + reason + ")" : "") +
+                "."
+            );
+          })
+          .catch(function () {
+            // Last resort: inline empty board with error
+            statusEl.className = "status error";
+            statusEl.textContent =
+              "Could not load issues or snapshot. Check the GitHub API or board-data.json.";
+            render([], "No cards loaded.");
+          });
+      }
+
+      function loadLive() {
+        return fetch(API, {
+          headers: { Accept: "application/vnd.github+json" }
+        }).then(function (r) {
+          if (!r.ok) throw new Error("API " + r.status);
+          return r.json();
+        });
+      }
+
+      function stamp() {
+        try {
+          return new Date().toLocaleString(undefined, {
+            dateStyle: "medium",
+            timeStyle: "short"
+          });
+        } catch (e) {
+          return new Date().toISOString();
+        }
+      }
+
+      function loadBoard() {
+        if (refreshBtn) refreshBtn.disabled = true;
+        statusEl.className = "status";
+        statusEl.textContent = "Loading issues…";
+        return loadLive()
+          .then(function (data) {
+            render(
+              normalize(data),
+              "Live from GitHub Issues (open + closed) · last fetched " +
+                stamp() +
+                "."
+            );
+          })
+          .catch(function (err) {
+            var why = (err && err.message) || "fetch failed";
+            return loadSnapshot(why + "; last try " + stamp());
+          });
+      }
+
+      if (refreshBtn) {
+        refreshBtn.addEventListener("click", function () {
+          loadBoard();
+        });
+      }
+
+      loadBoard();
+    })();
+  </script>
+</body>
+</html>
