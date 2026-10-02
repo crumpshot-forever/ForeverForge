@@ -25,7 +25,6 @@ Do not rename the folder. The game only loads it when the folder name matches `F
 - **SpellMaxer.** A local line when one of your own action-bar spells is a lower rank than you can use.
 - **Enemy Player Alert.** A short sound and a local line for an enemy player in nameplate range. A guild name is included when the game provides it. The same character is skipped for 1 minute.
 - **Click Heal.** For a Priest, Druid, Paladin, or Shaman, modified clicks on party and raid frames cast heals. Your own character frame is left alone.
-- **Rapid Mail.** Open All on the default mailbox. Skips COD and GM mail. Stops when bags are full.
 - **Mail Expire Alert.** On login, chat if recorded alt mail expires within N days. Snapshots when you close the mailbox.
 
 Chat lines from these tools stay in your own chat window and start with `Forever Forge:`.

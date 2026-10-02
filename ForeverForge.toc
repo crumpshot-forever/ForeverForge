@@ -22,5 +22,4 @@ Modules\AutoSellJunk.lua
 Modules\QuickHands.lua
 Modules\EnemyPlayerAlert.lua
 Modules\ClickHeal.lua
-Modules\RapidMail.lua
 Modules\MailExpireAlert.lua
