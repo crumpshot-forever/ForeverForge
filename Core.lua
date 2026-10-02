@@ -223,7 +223,8 @@ function FTK:AddonVersion()
   end
   if getter then
     local ok, version = pcall(getter, ADDON, "Version")
-    if ok and type(version) == "string" and version ~= "" then
+    -- Local checkouts keep the packager token. A packaged zip replaces it.
+    if ok and type(version) == "string" and version ~= "" and version ~= "@project-version@" then
       return version
     end
   end

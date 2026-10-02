@@ -62,9 +62,11 @@ local SUPPRESS_KEYS = {
   "SPELL_FAILED_TARGETS_DEAD",
 }
 
-local suppress = {}
+local suppressText = {}
+local suppressKey = {}
 local originalAddMessage
 local hooked = false
+local hookAttempts = 0
 
 local function IsSecret(value)
   if value == nil or not issecretvalue then
@@ -107,16 +109,17 @@ local function ClearTable(t)
 end
 
 local function RebuildSuppress()
-  ClearTable(suppress)
+  ClearTable(suppressText)
+  ClearTable(suppressKey)
   local i
   for i = 1, #SUPPRESS_KEYS do
     local key = SUPPRESS_KEYS[i]
+    suppressKey[key] = true
     local value = PlainString(_G[key])
-    if value then
-      -- Exact match only. Skip format strings that need a substitution.
-      if not value:find("%%", 1, true) then
-        suppress[value] = true
-      end
+    -- Exact text match only. A format string such as "Not enough %s" is not the
+    -- text the frame shows; the error id still matches that key below.
+    if value and not value:find("%%", 1, true) then
+      suppressText[value] = true
     end
   end
 end
@@ -126,24 +129,79 @@ local function ShouldSuppress(msg)
   if not text then
     return false
   end
-  return suppress[text] == true
+  return suppressText[text] == true
 end
 
-local function InstallHook()
-  local frame = _G.UIErrorsFrame
-  if not frame or hooked then
+-- UI_ERROR_MESSAGE passes an id. GetGameMessageInfo returns the ERR_* key.
+-- That still works when the displayed text is secret or was formatted.
+local function ShouldSuppressType(messageType)
+  if type(messageType) ~= "number" or IsSecret(messageType) then
+    return false
+  end
+  -- Color channels are 0 to 1. Error ids are larger integers.
+  if messageType < 2 or messageType ~= math.floor(messageType) then
+    return false
+  end
+  if type(GetGameMessageInfo) ~= "function" then
+    return false
+  end
+  local ok, name = pcall(GetGameMessageInfo, messageType)
+  name = ok and PlainString(name) or nil
+  if not name then
+    return false
+  end
+  return suppressKey[name] == true or suppressText[name] == true
+end
+
+local function ShouldSuppressCall(msg, ...)
+  if ShouldSuppress(msg) then
+    return true
+  end
+  local count = select("#", ...)
+  local i
+  for i = 1, count do
+    if ShouldSuppressType(select(i, ...)) then
+      return true
+    end
+  end
+  return false
+end
+
+local InstallHook
+
+local function ScheduleHook()
+  if hooked or hookAttempts >= 8 or not (C_Timer and C_Timer.After) then
     return
   end
-  if type(frame.AddMessage) ~= "function" then
+  hookAttempts = hookAttempts + 1
+  C_Timer.After(0.5, InstallHook)
+end
+
+InstallHook = function()
+  if hooked then
+    return
+  end
+  local frame = _G.UIErrorsFrame
+  if not frame or type(frame.AddMessage) ~= "function" then
+    ScheduleHook()
     return
   end
   originalAddMessage = frame.AddMessage
   hooked = true
   function frame.AddMessage(self, msg, ...)
-    if FTK:IsEnabled(MODULE_ID) and ShouldSuppress(msg) then
+    if FTK:IsEnabled(MODULE_ID) and ShouldSuppressCall(msg, ...) then
       return
     end
     return originalAddMessage(self, msg, ...)
+  end
+  if type(frame.TryDisplayMessage) == "function" then
+    local originalTry = frame.TryDisplayMessage
+    function frame.TryDisplayMessage(self, messageType, message, ...)
+      if FTK:IsEnabled(MODULE_ID) and (ShouldSuppressType(messageType) or ShouldSuppress(message)) then
+        return
+      end
+      return originalTry(self, messageType, message, ...)
+    end
   end
 end
 
