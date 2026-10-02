@@ -28,5 +28,14 @@ jobs:
         with:
           fetch-depth: 0
 
+      # Slice CHANGELOG.md to this version only so CF/Wago notes stay short and player-facing.
+      - name: Extract latest changelog section
+        uses: kemayo/actions-recent-changelog@v1
+        with:
+          input: CHANGELOG.md
+          output: .RECENT_CHANGES.md
+
       - name: Package and release
         uses: BigWigsMods/packager@v2
+        with:
+          args: -m .RECENT_CHANGES.md

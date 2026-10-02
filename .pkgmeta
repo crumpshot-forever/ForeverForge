@@ -1,5 +1,11 @@
 package-as: ForeverForge
 
+# Public CurseForge/Wago/GitHub release notes come from CHANGELOG.md only
+# (not raw git commits). Keep that file player-facing.
+manual-changelog:
+  filename: CHANGELOG.md
+  markup-type: markdown
+
 ignore:
   - Screenshots
   - docs

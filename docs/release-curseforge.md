@@ -72,4 +72,13 @@ CurseForge’s GitHub App / tag auto-import can miss tags or stall with no actio
 
 - [BigWigs packager README](https://github.com/BigWigsMods/packager)  
 - [GitHub Actions workflow wiki](https://github.com/BigWigsMods/packager/wiki/GitHub-Actions-workflow)  
-- Forever Forge on CurseForge: https://www.curseforge.com/wow/addons/forever-forge  
+- Forever Forge on CurseForge: https://www.curseforge.com/wow/addons/forever-forge
+
+## Public changelog (player-facing)
+
+Release notes on CurseForge, Wago, and GitHub Releases come from **`CHANGELOG.md` only** — never raw git commits.
+
+- Write feature bullets players care about (what the tool does in-game).
+- Do **not** mention Grok Build, work-orders, sprint board, UAT, Lead, PR numbers, or internal ops.
+- Before tagging `vX.Y.Z`, add a `## X.Y.Z` section at the top of `CHANGELOG.md`.
+- The release workflow slices the latest section into `.RECENT_CHANGES.md` for the upload.
