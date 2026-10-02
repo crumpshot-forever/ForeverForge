@@ -1,5 +1,5 @@
 --[[
-  Ninjee Loot. When the loot window opens in auto-loot mode, every slot
+  Turbo Loot. When the loot window opens in auto-loot mode, every slot
   is taken immediately instead of one item at a time.
 
   The auto-loot key follows the normal window: if auto-loot is on, holding
@@ -192,7 +192,7 @@ end)
 
 FTK:RegisterModule({
   id = MODULE_ID,
-  name = "Ninjee Loot",
+  name = "Turbo Loot",
   description = "Takes every loot slot immediately when auto-loot is on. The auto-loot key follows the same rule as the normal loot window.",
   defaultEnabled = true,
   onEnable = function()

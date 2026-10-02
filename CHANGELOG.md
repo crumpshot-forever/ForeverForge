@@ -3,6 +3,11 @@
 ## 1.4.0
 
 - **Quick Accept.** Opt-in Accept Summon, Accept Res, auto-accept party invites, Decline Duels, and BG Auto-Release (all off by default).
+- The menu shows **1.4.0** on a raw checkout instead of the packager token.
+- Feature descriptions use their full text in the list and on the Configure page.
+- **Turbo Loot** is the new name for Ninjee Loot.
+- The footer reads Support & Feedback. Clicking it selects the site address so it can be copied.
+- The menu opens once on a new install and once when the version changes.
 
 ## 1.3.0
 
