@@ -25,5 +25,6 @@ Modules\RepairAll.lua
 Modules\QuickHands.lua
 Modules\EnemyPlayerAlert.lua
 Modules\ClickHeal.lua
+Modules\MailExpireAlert.lua
 Modules\NpcAssist.lua
 Modules\QuestAuto.lua
