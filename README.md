@@ -41,3 +41,9 @@ Tagged releases (`vX.Y.Z`) are packaged by GitHub Actions and uploaded to CurseF
 ## Support
 
 Forever Forge is free, including every future update. If you've enjoyed this addon, please leave a donation and tell your friends. https://ko-fi.com/crumpshot
+
+## Sprint / UAT (Grok Build)
+
+- Live board: https://crumpshot-forever.github.io/ForeverForge/board.html
+- Git work-orders (assignment bus): [`work-orders/`](work-orders/) — start at [`ACTIVE.md`](work-orders/ACTIVE.md)
+- Build manual: [`docs/grok-build.md`](docs/grok-build.md)
