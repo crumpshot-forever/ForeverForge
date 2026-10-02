@@ -1,7 +1,7 @@
 # ACTIVE work order
 
-**Updated:** 2026-10-01 (CT)  
-**Status:** Package A merged to main after UAT PASS. Next: Package B.
+**Updated:** 2026-10-02 (CT)  
+**Status:** Package C merged to main after UAT PASS (no tag). Next: Package B.
 
 ## Do this next
 
@@ -22,13 +22,14 @@ Pull ForeverForge, open work-orders/ACTIVE.md, checkout the PR branch listed the
 ## Done
 
 - A Vendor Stop — merged PR #13 · issue #2 → `lane:released`
+- D NPC Flow — merged PR #16 · **v1.3.0** · issue #5 → `lane:released`
+- C Mail Kit — merged PR #15 · Mail Expire Alert only (Rapid Mail dropped) · issue #3 → `lane:released` · **no tag**
 
 ## Queue after ACTIVE
 
-1. C Mail Kit — [WO-C](uat/WO-C-mail-kit.md) · PR #15  
-3. E Social — [WO-E](uat/WO-E-social.md) · PR #17  
-4. F Durability — [WO-F](uat/WO-F-durability.md) · PR #18  
-5. G Chat Kit — [WO-G](uat/WO-G-chat-kit.md) · PR #22  
+1. E Social — [WO-E](uat/WO-E-social.md) · PR #17  
+2. F Durability — [WO-F](uat/WO-F-durability.md) · PR #18  
+3. G Chat Kit — [WO-G](uat/WO-G-chat-kit.md) · PR #22  
 
 ## Board
 
