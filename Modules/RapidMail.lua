@@ -53,13 +53,20 @@ local function Later(delay, callback)
   return false
 end
 
+local function ApiTrue(value)
+  if IsSecret(value) then
+    return false
+  end
+  return value == true or value == 1
+end
+
 local function MailOpen()
   local mail = _G.MailFrame
   if not mail or not mail.IsShown then
     return false
   end
   local ok, shown = pcall(mail.IsShown, mail)
-  return ok and shown == true
+  return ok and ApiTrue(shown)
 end
 
 local function BagCount()
@@ -117,10 +124,12 @@ local function Header(index)
     sender = PlainString(sender),
     subject = PlainString(subject),
     money = PlainNumber(money) or 0,
+    -- A secret COD amount is not safe to treat as free mail.
+    codUnsafe = IsSecret(CODAmount),
     CODAmount = PlainNumber(CODAmount) or 0,
     daysLeft = PlainNumber(daysLeft),
-    hasItem = hasItem == true or (PlainNumber(hasItem) or 0) > 0,
-    isGM = isGM == true,
+    hasItem = hasItem == true or hasItem == 1 or (PlainNumber(hasItem) or 0) > 0,
+    isGM = ApiTrue(isGM),
   }
 end
 
@@ -164,15 +173,20 @@ local function TakeAttachments(index)
   if type(TakeInboxItem) ~= "function" then
     return false
   end
+  -- One slot per tick. Taking every slot in one frame stalls the mailbox.
   local maxSlots = PlainNumber(_G.ATTACHMENTS_MAX_RECEIVE) or 16
-  local slot
-  local any = false
-  for slot = maxSlots, 1, -1 do
-    if pcall(TakeInboxItem, index, slot) then
-      any = true
+  local slot = 1
+  if type(GetInboxItemLink) == "function" then
+    local probe
+    for probe = 1, maxSlots do
+      local ok, link = pcall(GetInboxItemLink, index, probe)
+      if ok and PlainString(link) then
+        slot = probe
+        break
+      end
     end
   end
-  return any
+  return pcall(TakeInboxItem, index, slot)
 end
 
 local function DeleteEmpty(index)
@@ -222,7 +236,7 @@ ProcessNext = function(token)
     if info then
       if info.isGM then
         -- Leave GM mail alone.
-      elseif info.CODAmount > 0 then
+      elseif info.codUnsafe or info.CODAmount > 0 then
         -- Leave COD alone.
       else
         if info.money > 0 then

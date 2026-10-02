@@ -101,7 +101,7 @@ local function InboxCount()
   return ok and PlainNumber(num) or 0
 end
 
-local function SnapshotInbox()
+local function SnapshotInbox(fromClose)
   if not FTK:IsEnabled(MODULE_ID) then
     return
   end
@@ -112,7 +112,11 @@ local function SnapshotInbox()
   local cfg = Config()
   local num = InboxCount()
   if num <= 0 then
-    cfg.mailByChar[key] = nil
+    -- MAIL_CLOSED often clears the inbox API before the handler runs.
+    -- A real empty inbox already cleared the snapshot on MAIL_INBOX_UPDATE.
+    if not fromClose then
+      cfg.mailByChar[key] = nil
+    end
     return
   end
   if type(GetInboxHeaderInfo) ~= "function" then
@@ -253,12 +257,12 @@ end
 
 frame:SetScript("OnEvent", function(_, event)
   if event == "MAIL_CLOSED" then
-    SnapshotInbox()
+    SnapshotInbox(true)
     return
   end
   if event == "MAIL_INBOX_UPDATE" then
     -- Keep snapshot fresh while the mailbox is open.
-    SnapshotInbox()
+    SnapshotInbox(false)
     return
   end
   if event == "PLAYER_ENTERING_WORLD" then
