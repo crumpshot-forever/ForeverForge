@@ -8,6 +8,7 @@
 ## IconTexture: Interface\AddOns\ForeverForge\Textures\Minimap
 ## SavedVariables: ForeverForgeDB
 ## X-Curse-Project-ID: 1714676
+## X-Wago-ID: 96EXLYNg
 
 Core.lua
 Minimap.lua

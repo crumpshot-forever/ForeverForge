@@ -31,7 +31,7 @@ CurseForge’s GitHub App / tag auto-import can miss tags or stall with no actio
    - Value: the CurseForge token  
 
 3. **Optional — Wago**  
-   If you want the same tag uploaded to Wago Addons: create a token at [Wago API keys](https://addons.wago.io/account/apikeys), add secret `WAGO_API_TOKEN`, and add `## X-Wago-ID: <id>` to `ForeverForge.toc` (id from the Wago developer dashboard). Until then, the workflow still runs; Wago upload is simply skipped when the secret is empty.
+   The Wago project metadata is now in `ForeverForge.toc` as `## X-Wago-ID: 96EXLYNg`. If Wago upload is configured, tagged releases can use this metadata; otherwise the workflow still runs without the Wago upload.
 
 4. **GitHub Release permission**  
    The workflow sets `permissions: contents: write` so the default `GITHUB_TOKEN` can create the GitHub Release. If you see `Resource not accessible by integration`, check repo **Settings → Actions → General → Workflow permissions** includes read and write.
