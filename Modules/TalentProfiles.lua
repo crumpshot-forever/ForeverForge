@@ -7,6 +7,10 @@
   Committed points cannot be refunded on Forever, so if the committed build
   has points the saved build does not, Apply places nothing and asks for a
   trainer reset.
+
+  Saved builds for the spec on screen also show as tabs on the right of the
+  talent window: spec icon, with the saved name drawn on it. Click a tab to
+  stage that build. Click it again to clear the preview.
 ]]
 
 local FTK = ForeverForge
@@ -51,6 +55,16 @@ end
 
 local function Say(msg)
   FTK:Print("Talent Profiles: " .. msg)
+end
+
+-- Which saved build the side tabs last staged, and for which spec index.
+local viewedName, viewedSpec
+local RefreshSideTabs
+
+local function TouchTabs()
+  if RefreshSideTabs then
+    RefreshSideTabs()
+  end
 end
 
 local function Call(fn, ...)
@@ -117,7 +131,8 @@ local function Config()
 end
 
 -- Returns the name -> build table for this character and spec.
-local function Builds()
+-- spec nil means the spec the character is playing right now.
+local function Builds(spec)
   local key = CharKey()
   if not key then
     return nil
@@ -128,7 +143,7 @@ local function Builds()
     char = {}
     cfg.builds[key] = char
   end
-  local spec = SpecIndex()
+  spec = PlainNumber(spec) or SpecIndex()
   local list = char[spec]
   if type(list) ~= "table" then
     list = {}
@@ -137,8 +152,8 @@ local function Builds()
   return list
 end
 
-local function SortedNames()
-  local list = Builds() or {}
+local function SortedNames(spec)
+  local list = Builds(spec) or {}
   local names = {}
   local name
   for name in pairs(list) do
@@ -150,8 +165,8 @@ local function SortedNames()
   return names
 end
 
-local function FindName(name)
-  local list = Builds()
+local function FindName(name, spec)
+  local list = Builds(spec)
   name = Trim(name)
   if not list or name == "" then
     return nil
@@ -174,6 +189,19 @@ local function ActiveConfig()
   configID = ok and PlainNumber(configID) or nil
   if not configID then
     return nil
+  end
+  local okInfo, info = Call(C_Traits.GetConfigInfo, configID)
+  if not okInfo or type(info) ~= "table" or type(info.treeIDs) ~= "table" then
+    return nil
+  end
+  return configID, info.treeIDs
+end
+
+-- configID nil uses the active spec. A talent-pane id stages into the tree on screen.
+local function ResolveConfig(configID)
+  configID = PlainNumber(configID)
+  if not configID then
+    return ActiveConfig()
   end
   local okInfo, info = Call(C_Traits.GetConfigInfo, configID)
   if not okInfo or type(info) ~= "table" or type(info.treeIDs) ~= "table" then
@@ -286,6 +314,7 @@ local function SaveBuild(name)
   end
   list[name] = { nodes = ranks, points = count, savedAt = time and time() or 0 }
   Say("Saved \"" .. name .. "\" (" .. count .. " points).")
+  TouchTabs()
   return true
 end
 
@@ -296,7 +325,11 @@ local function DeleteBuild(name)
     return false
   end
   Builds()[found] = nil
+  if viewedName == found then
+    viewedName, viewedSpec = nil, nil
+  end
   Say("Deleted \"" .. found .. "\".")
+  TouchTabs()
   return true
 end
 
@@ -320,36 +353,16 @@ local function RenameBuild(old, new)
   local build = list[found]
   list[found] = nil
   list[new] = build
+  if viewedName == found then
+    viewedName = new
+  end
   Say("Renamed \"" .. found .. "\" to \"" .. new .. "\".")
+  TouchTabs()
   return true
 end
 
-local function ApplyBuild(name)
-  if InCombatLockdown and InCombatLockdown() then
-    Say("Can't apply a build in combat.")
-    return false
-  end
-  if not Supported() then
-    Say("Not supported on this client.")
-    return false
-  end
-  local found = FindName(name)
-  if not found then
-    Say("No build named \"" .. Trim(name) .. "\".")
-    return false
-  end
-  local saved = Builds()[found].nodes or {}
-  local configID, treeIDs = ActiveConfig()
-  if not configID then
-    Say("No active talent config found.")
-    return false
-  end
-  if HasStaged(configID) then
-    Say("You already have unapplied talent changes. Only adding points on top of them.")
-  end
-
-  -- Pass 1: anything committed that the saved build doesn't have blocks Apply.
-  local nodes = ReadNodes(configID, treeIDs)
+-- True when committed points cannot become this saved build without a trainer reset.
+local function CommittedBlocks(nodes, saved, configID)
   local i
   for i = 1, #nodes do
     local n = nodes[i]
@@ -360,10 +373,60 @@ local function ApplyBuild(name)
       local entryMismatch = want and want.entryID and n.isChoice and n.entryID and n.entryID ~= want.entryID
       if committed > wantRank or entryMismatch then
         Say("Reset at trainer first. Your talents have points this build doesn't (" .. NodeName(configID, n.nodeID) .. ").")
-        return false
+        return true
       end
     end
   end
+  return false
+end
+
+local function Rollback(configID)
+  local fn = C_Traits and (C_Traits.RollbackConfig or C_Traits.RollBackConfig)
+  if type(fn) ~= "function" then
+    return false
+  end
+  local ok = pcall(fn, configID)
+  return ok
+end
+
+-- spec and configID are optional. The menu and slash command leave them nil
+-- (active spec, active config). Side tabs pass the tree on screen.
+-- replaceStaged clears a previous preview before purchasing, and only after
+-- the committed-points check passes.
+local function ApplyBuild(name, spec, configID, replaceStaged)
+  if InCombatLockdown and InCombatLockdown() then
+    Say("Can't apply a build in combat.")
+    return false
+  end
+  if not Supported() then
+    Say("Not supported on this client.")
+    return false
+  end
+  local found = FindName(name, spec)
+  if not found then
+    Say("No build named \"" .. Trim(name) .. "\".")
+    return false
+  end
+  local saved = Builds(spec)[found].nodes or {}
+  local treeIDs
+  configID, treeIDs = ResolveConfig(configID)
+  if not configID then
+    Say("No active talent config found.")
+    return false
+  end
+
+  local nodes = ReadNodes(configID, treeIDs)
+  if CommittedBlocks(nodes, saved, configID) then
+    return false
+  end
+  if HasStaged(configID) then
+    if replaceStaged and Rollback(configID) and not HasStaged(configID) then
+      nodes = ReadNodes(configID, treeIDs)
+    else
+      Say("You already have unapplied talent changes. Only adding points on top of them.")
+    end
+  end
+  local i
 
   -- Pass 2: stage missing ranks, top rows first, until nothing moves.
   table.sort(nodes, function(a, b)
@@ -411,7 +474,10 @@ local function ApplyBuild(name)
   if firstFail then
     Say("Stopped at " .. NodeName(configID, firstFail.nodeID, saved[firstFail.nodeID].entryID) .. ". It may need more points or a prerequisite.")
   end
+  viewedName = found
+  viewedSpec = PlainNumber(spec) or SpecIndex()
   Say("Placed " .. placed .. " points. Review and click Apply Changes.")
+  TouchTabs()
   return true
 end
 
@@ -448,6 +514,403 @@ local function OnSlash(rest)
     Say("Saved builds: " .. table.concat(names, ", "))
   end
   Say("/ff talents save <name>, apply <name>, delete <name>, rename <old> = <new>")
+end
+
+local tabsEnabled = false
+local profileTabs
+local tabButtons = {}
+local tabWatcher = CreateFrame("Frame")
+
+local function Solid(tex, r, g, b, a)
+  if tex.SetColorTexture then
+    tex:SetColorTexture(r, g, b, a)
+  else
+    tex:SetTexture("Interface\\Buttons\\WHITE8X8")
+    tex:SetVertexColor(r, g, b, a)
+  end
+end
+
+local function TalentHost()
+  local frame = _G.PlayerSpellsFrame or _G.ClassTalentFrame
+  if type(frame) ~= "table" then
+    frame = _G.PlayerTalentFrame
+  end
+  if type(frame) ~= "table" then
+    return nil
+  end
+  local pane = frame.TalentsFrame or frame.TalentsTab
+  if type(pane) ~= "table" and frame == _G.PlayerTalentFrame then
+    pane = frame
+  end
+  if type(pane) ~= "table" then
+    return nil
+  end
+  return frame, pane
+end
+
+local function NumSpecs()
+  local fn = C_SpecializationInfo and C_SpecializationInfo.GetNumSpecializations or GetNumSpecializations
+  local ok, n = Call(fn)
+  n = ok and PlainNumber(n) or nil
+  if n and n > 0 and n < 20 then
+    return n
+  end
+  return 4
+end
+
+local function SpecInfoAt(index)
+  local specID, icon
+  pcall(function()
+    local id, specName, specDesc, file
+    if C_SpecializationInfo and type(C_SpecializationInfo.GetSpecializationInfo) == "function" then
+      id, specName, specDesc, file = C_SpecializationInfo.GetSpecializationInfo(index)
+    elseif GetSpecializationInfo then
+      id, specName, specDesc, file = GetSpecializationInfo(index)
+    end
+    specID, icon = id, file
+  end)
+  if IsSecret(icon) then
+    icon = nil
+  end
+  return PlainNumber(specID), icon
+end
+
+local function SpecIndexForID(specID)
+  specID = PlainNumber(specID)
+  if not specID then
+    return nil
+  end
+  local i
+  for i = 1, NumSpecs() do
+    local id = SpecInfoAt(i)
+    if id == specID then
+      return i
+    end
+  end
+  return nil
+end
+
+local function ViewingSpec(pane)
+  if pane and type(pane.GetSpecID) == "function" then
+    local ok, specID = Call(pane.GetSpecID, pane)
+    local idx = ok and SpecIndexForID(specID)
+    if idx then
+      return idx
+    end
+  end
+  return SpecIndex()
+end
+
+local function PaneConfigID(pane)
+  if pane and type(pane.GetConfigID) == "function" then
+    local ok, id = Call(pane.GetConfigID, pane)
+    return ok and PlainNumber(id) or nil
+  end
+  return nil
+end
+
+local function SpecIcon(spec)
+  local _, icon = SpecInfoAt(spec)
+  if type(icon) == "number" or (type(icon) == "string" and icon ~= "") then
+    return icon
+  end
+  return "Interface\\Icons\\INV_Misc_QuestionMark"
+end
+
+local function PaintBorder(btn, selected)
+  local r, g, b, a = 0.2, 0.16, 0.08, 0.95
+  if selected then
+    r, g, b, a = 0.95, 0.78, 0.25, 1
+  end
+  Solid(btn.edgeTop, r, g, b, a)
+  Solid(btn.edgeBottom, r, g, b, a)
+  Solid(btn.edgeLeft, r, g, b, a)
+  Solid(btn.edgeRight, r, g, b, a)
+end
+
+local function ViewBuild(name)
+  if InCombatLockdown and InCombatLockdown() then
+    Say("Can't apply a build in combat.")
+    TouchTabs()
+    return
+  end
+  local _, pane = TalentHost()
+  local spec = ViewingSpec(pane)
+  local found = FindName(name, spec)
+  if not found then
+    Say("No build named \"" .. Trim(name) .. "\".")
+    return
+  end
+  local configID = PaneConfigID(pane)
+  if not configID and spec ~= SpecIndex() then
+    Say("This talent tree isn't ready to stage yet.")
+    return
+  end
+  if viewedName == found and viewedSpec == spec then
+    local id = select(1, ResolveConfig(configID))
+    if id and HasStaged(id) and (not Rollback(id) or HasStaged(id)) then
+      Say("Couldn't clear the talent preview on this client.")
+      TouchTabs()
+      return
+    end
+    viewedName, viewedSpec = nil, nil
+    Say("Cleared \"" .. found .. "\". Showing committed talents.")
+    TouchTabs()
+    return
+  end
+  ApplyBuild(found, spec, configID, true)
+end
+
+local function EnsureTabButton(index)
+  local btn = tabButtons[index]
+  if btn then
+    return btn
+  end
+  btn = CreateFrame("Button", nil, profileTabs)
+  btn:SetSize(72, 46)
+  btn:RegisterForClicks("LeftButtonUp")
+  btn:EnableMouse(true)
+  btn.bg = btn:CreateTexture(nil, "BACKGROUND")
+  btn.bg:SetAllPoints()
+  Solid(btn.bg, 0.04, 0.04, 0.04, 0.92)
+  btn.icon = btn:CreateTexture(nil, "ARTWORK")
+  btn.icon:SetPoint("TOPLEFT", 3, -3)
+  btn.icon:SetPoint("BOTTOMRIGHT", -3, 3)
+  btn.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+  btn.shade = btn:CreateTexture(nil, "OVERLAY")
+  btn.shade:SetPoint("BOTTOMLEFT", 3, 3)
+  btn.shade:SetPoint("BOTTOMRIGHT", -3, 3)
+  btn.shade:SetHeight(15)
+  Solid(btn.shade, 0, 0, 0, 0.78)
+  btn.label = btn:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+  pcall(btn.label.SetDrawLayer, btn.label, "OVERLAY", 7)
+  btn.label:SetPoint("BOTTOM", 0, 4)
+  btn.label:SetJustifyH("CENTER")
+  btn.label:SetWordWrap(false)
+  local font = btn.label:GetFont()
+  if font then
+    btn.label:SetFont(font, 9, "OUTLINE")
+  end
+  local function Edge()
+    local tex = btn:CreateTexture(nil, "OVERLAY")
+    return tex
+  end
+  btn.edgeTop = Edge()
+  btn.edgeTop:SetPoint("TOPLEFT")
+  btn.edgeTop:SetPoint("TOPRIGHT")
+  btn.edgeTop:SetHeight(2)
+  btn.edgeBottom = Edge()
+  btn.edgeBottom:SetPoint("BOTTOMLEFT")
+  btn.edgeBottom:SetPoint("BOTTOMRIGHT")
+  btn.edgeBottom:SetHeight(2)
+  btn.edgeLeft = Edge()
+  btn.edgeLeft:SetPoint("TOPLEFT")
+  btn.edgeLeft:SetPoint("BOTTOMLEFT")
+  btn.edgeLeft:SetWidth(2)
+  btn.edgeRight = Edge()
+  btn.edgeRight:SetPoint("TOPRIGHT")
+  btn.edgeRight:SetPoint("BOTTOMRIGHT")
+  btn.edgeRight:SetWidth(2)
+  btn:SetScript("OnClick", function(self)
+    ViewBuild(self.profileName)
+  end)
+  btn:SetScript("OnEnter", function(self)
+    if not GameTooltip or not self.profileName then
+      return
+    end
+    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+    GameTooltip:SetText(FTK.Plain(self.profileName), 1, 0.82, 0)
+    local build = self.profileSpec and Builds(self.profileSpec)
+    local points = build and build[self.profileName] and build[self.profileName].points
+    if points then
+      GameTooltip:AddLine(tostring(points) .. " points", 0.8, 0.8, 0.8)
+    end
+    GameTooltip:AddLine("Click to view this build in the talent window. Click again to clear the preview.", 1, 1, 1, true)
+    GameTooltip:Show()
+  end)
+  btn:SetScript("OnLeave", function()
+    if GameTooltip then
+      GameTooltip:Hide()
+    end
+  end)
+  tabButtons[index] = btn
+  return btn
+end
+
+local function HookPane(frame, pane)
+  if pane.HookScript and not pane.ftkTalentProfileTabs then
+    pane.ftkTalentProfileTabs = true
+    pane:HookScript("OnShow", function()
+      TouchTabs()
+    end)
+    pane:HookScript("OnHide", function()
+      if profileTabs then
+        profileTabs:Hide()
+      end
+    end)
+  end
+  if frame ~= pane and frame.HookScript and not frame.ftkTalentProfileTabs then
+    frame.ftkTalentProfileTabs = true
+    frame:HookScript("OnHide", function()
+      if profileTabs then
+        profileTabs:Hide()
+      end
+    end)
+  end
+end
+
+RefreshSideTabs = function()
+  if not tabsEnabled then
+    if profileTabs then
+      profileTabs:Hide()
+    end
+    return
+  end
+  local frame, pane = TalentHost()
+  if not frame then
+    return
+  end
+  HookPane(frame, pane)
+  if not pane:IsShown() then
+    if profileTabs then
+      profileTabs:Hide()
+    end
+    return
+  end
+  local spec = ViewingSpec(pane)
+  if profileTabs and profileTabs.specSeen and profileTabs.specSeen ~= spec then
+    if viewedSpec ~= spec then
+      viewedName, viewedSpec = nil, nil
+    end
+  end
+  local names = SortedNames(spec)
+  if #names == 0 then
+    if profileTabs then
+      profileTabs:Hide()
+    end
+    return
+  end
+  if not profileTabs then
+    local ok, created = pcall(CreateFrame, "Frame", "ForeverForgeTalentProfileTabs", UIParent)
+    if ok and type(created) == "table" then
+      profileTabs = created
+    else
+      profileTabs = CreateFrame("Frame", "ForeverForgeTalentProfileTabs", UIParent)
+    end
+    profileTabs:EnableMouse(false)
+    profileTabs:SetScript("OnUpdate", function(self, elapsed)
+      self.t = (self.t or 0) + elapsed
+      if self.t < 0.4 then
+        return
+      end
+      self.t = 0
+      if not tabsEnabled or not self:IsShown() then
+        return
+      end
+      local _, openPane = TalentHost()
+      if not openPane or not openPane:IsShown() then
+        self:Hide()
+        return
+      end
+      local openSpec = ViewingSpec(openPane)
+      if openSpec ~= self.specSeen then
+        RefreshSideTabs()
+      end
+    end)
+  end
+  profileTabs.specSeen = spec
+  local width = 72
+  local i
+  for i = 1, #names do
+    local guess = 18 + #names[i] * 7
+    if guess > width then
+      width = guess
+    end
+  end
+  if width > 130 then
+    width = 130
+  end
+  local height = 46
+  local icon = SpecIcon(spec)
+  for i = 1, math.max(#names, #tabButtons) do
+    local name = names[i]
+    if name then
+      local btn = EnsureTabButton(i)
+      btn.profileName = name
+      btn.profileSpec = spec
+      btn:SetSize(width, height)
+      btn.label:SetWidth(width - 8)
+      btn.label:SetText(FTK.Plain(name))
+      btn.icon:SetTexture(icon)
+      local selected = viewedName == name and viewedSpec == spec
+      btn.icon:SetAlpha(selected and 1 or 0.82)
+      PaintBorder(btn, selected)
+      btn:ClearAllPoints()
+      btn:SetPoint("TOPLEFT", profileTabs, "TOPLEFT", 0, -((i - 1) * (height + 4)))
+      btn:Show()
+    elseif tabButtons[i] then
+      tabButtons[i]:Hide()
+    end
+  end
+  profileTabs:SetSize(width, #names * (height + 4) - 4)
+  profileTabs:ClearAllPoints()
+  profileTabs:SetPoint("TOPLEFT", frame, "TOPRIGHT", 4, -6)
+  local strata = frame.GetFrameStrata and frame:GetFrameStrata() or "MEDIUM"
+  profileTabs:SetFrameStrata(strata)
+  local level = frame.GetFrameLevel and frame:GetFrameLevel() or 1
+  profileTabs:SetFrameLevel(level + 20)
+  profileTabs:Show()
+end
+
+tabWatcher:SetScript("OnEvent", function(_, event, arg1)
+  if not tabsEnabled then
+    return
+  end
+  if event == "ADDON_LOADED" and arg1 ~= "Blizzard_PlayerSpells" and arg1 ~= "Blizzard_ClassTalentUI" and arg1 ~= "Blizzard_TalentUI" then
+    return
+  end
+  RefreshSideTabs()
+end)
+
+local function Watch(event)
+  pcall(tabWatcher.RegisterEvent, tabWatcher, event)
+end
+
+local tabsWatching = false
+
+local function LoadTalentUI()
+  local load = (C_AddOns and C_AddOns.LoadAddOn) or UIParentLoadAddOn or LoadAddOn
+  if type(load) ~= "function" then
+    return
+  end
+  pcall(load, "Blizzard_PlayerSpells")
+  if not _G.PlayerSpellsFrame then
+    pcall(load, "Blizzard_ClassTalentUI")
+  end
+  if not _G.PlayerSpellsFrame and not _G.ClassTalentFrame and not _G.PlayerTalentFrame then
+    pcall(load, "Blizzard_TalentUI")
+  end
+end
+
+local function StartTabs()
+  tabsEnabled = true
+  LoadTalentUI()
+  if not tabsWatching then
+    tabsWatching = true
+    Watch("ADDON_LOADED")
+    Watch("PLAYER_ENTERING_WORLD")
+    Watch("PLAYER_SPECIALIZATION_CHANGED")
+    Watch("ACTIVE_TALENT_GROUP_CHANGED")
+  end
+  TouchTabs()
+end
+
+local function StopTabs()
+  tabsEnabled = false
+  viewedName, viewedSpec = nil, nil
+  if profileTabs then
+    profileTabs:Hide()
+  end
 end
 
 local function MakeButton(parent, text, width)
@@ -491,7 +954,7 @@ local function BuildOptions(_, parent)
     parent:SetHeight(40)
     return
   end
-  note:SetText("Builds for this character and spec. Apply places points but does not commit them: review, then click Apply Changes in the talent window.")
+  note:SetText("Builds for this character and spec. They also show as tabs on the right of the talent window. Apply places points but does not commit them: review, then click Apply Changes.")
   y = y - 40
 
   local box = MakeEditBox(parent, 200)
@@ -587,11 +1050,12 @@ end
 FTK:RegisterModule({
   id = MODULE_ID,
   name = "Talent Profiles",
-  description = "Save talent builds by name per character and spec. Apply stages the points; you review and click Apply Changes. Needs a trainer reset if your committed points don't match.",
+  description = "Save talent builds by name per character and spec. Each saved build is a spec-icon tab on the right of the talent window. Apply stages the points; you review and click Apply Changes. Needs a trainer reset if your committed points don't match.",
   defaultEnabled = true,
   BuildOptions = BuildOptions,
   onEnable = function()
     Config()
+    StartTabs()
     if FTK.RegisterSlash then
       FTK:RegisterSlash("talents", function(rest)
         if not FTK:IsEnabled(MODULE_ID) then
@@ -602,5 +1066,7 @@ FTK:RegisterModule({
       end)
     end
   end,
-  onDisable = function() end,
+  onDisable = function()
+    StopTabs()
+  end,
 })

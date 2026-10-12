@@ -275,7 +275,7 @@ function FTK:PrintHelp()
   self:Print("/ff, /forge, or /foreverforge - open or close the menu")
   self:Print("/ff reset - move the minimap button back")
   self:Print("/ff modules - list features")
-  self:Print("/ff talents - Talent Profiles: save, apply, delete builds")
+  self:Print("/ff talents - Talent Profiles: save, apply, or use the talent-window tabs")
 end
 
 function FTK:OnSlash(msg)
