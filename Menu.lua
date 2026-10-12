@@ -554,12 +554,31 @@ function Menu.Ensure()
 
   local subtitle = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
   subtitle:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -2)
-  subtitle:SetWidth(FRAME_W - 90)
+  subtitle:SetWidth(FRAME_W - 200)
   subtitle:SetJustifyH("LEFT")
   subtitle:SetWordWrap(true)
   subtitle:SetTextColor(0.75, 0.7, 0.6)
   subtitle:SetText(ListSubtitle())
   Menu.subtitle = subtitle
+
+  -- Show or hide the minimap button. /ff still opens the menu either way.
+  local mmBox = CreateFrame("CheckButton", nil, frame)
+  mmBox:SetSize(22, 22)
+  mmBox:SetPoint("TOPRIGHT", -12, -34)
+  mmBox:SetNormalTexture("Interface\\Buttons\\UI-CheckBox-Up")
+  mmBox:SetPushedTexture("Interface\\Buttons\\UI-CheckBox-Down")
+  mmBox:SetCheckedTexture("Interface\\Buttons\\UI-CheckBox-Check")
+  mmBox:SetFrameLevel(drag:GetFrameLevel() + 5)
+  local mmLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+  mmLabel:SetPoint("RIGHT", mmBox, "LEFT", -2, 0)
+  mmLabel:SetText("Minimap icon")
+  mmBox:SetScript("OnClick", function(self)
+    FTK:SetMinimapHidden(not self:GetChecked())
+  end)
+  function FTK:RefreshMinimapToggle()
+    mmBox:SetChecked(not self:IsMinimapHidden())
+  end
+  FTK:RefreshMinimapToggle()
 
   local rule = frame:CreateTexture(nil, "ARTWORK")
   rule:SetHeight(1)
@@ -690,6 +709,9 @@ function Menu.Ensure()
     self:Raise()
     FTK:InitDB()
     RestorePosition(self)
+    if FTK.RefreshMinimapToggle then
+      FTK:RefreshMinimapToggle()
+    end
     Menu.ShowList()
   end)
 
