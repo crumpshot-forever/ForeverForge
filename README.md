@@ -30,6 +30,7 @@ Do not rename the folder. The game only loads it when the folder name matches `F
 - **NPC Gossip Skip.** Skips single non-quest gossip and opens the flight map at flight masters. Hold Shift for normal talk.
 - **Auto Quest.** Accepts and turns in quests. Hold Shift to handle them yourself. Skips gold-cost and multi-reward turn-ins.
 - **Quick Accept.** Opt-in Accept Summon, Accept Res, auto-accept party invites, Decline Duels, and BG Auto-Release (all off by default).
+- **Talent Profiles.** Save talent builds by name per character and spec. Apply stages the points for you to review and click Apply Changes. `/ff talents` for chat commands.
 
 Chat lines from these tools stay in your own chat window and start with `Forever Forge:`.
 

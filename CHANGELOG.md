@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.0
+
+- **Talent Profiles.** Save talent builds by name per character and spec, then Apply to stage the points. Nothing is committed: review and click Apply Changes. If your committed points do not match the build, it says Reset at trainer first and places nothing. Menu page plus `/ff talents`.
+
 ## 1.4.0
 
 - **Quick Accept.** Opt-in Accept Summon, Accept Res, auto-accept party invites, Decline Duels, and BG Auto-Release (all off by default).

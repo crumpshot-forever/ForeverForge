@@ -47,9 +47,10 @@ _G.ForeverForge = FTK
 -- from the git tag. This fallback is the menu version on a raw checkout.
 -- Publish a version by committing it and tagging vX.Y.Z on GitHub.
 -- Do not rename the live ForeverForge folder.
-FTK.VERSION = "1.4.0"
+FTK.VERSION = "1.5.0"
 FTK.modules = {}
 FTK.moduleOrder = {}
+FTK.slashHandlers = {}
 
 local function Trim(s)
   return (tostring(s or ""):gsub("^%s+", ""):gsub("%s+$", ""))
@@ -261,14 +262,34 @@ function FTK:MaybeOpenMenu()
   end
 end
 
+-- Lets a feature own one /ff word, e.g. "/ff talents save Raid".
+-- The handler gets the rest of the line with its original case.
+function FTK:RegisterSlash(word, handler)
+  word = Trim(word):lower()
+  if word ~= "" and type(handler) == "function" then
+    self.slashHandlers[word] = handler
+  end
+end
+
 function FTK:PrintHelp()
   self:Print("/ff, /forge, or /foreverforge - open or close the menu")
   self:Print("/ff reset - move the minimap button back")
   self:Print("/ff modules - list features")
+  self:Print("/ff talents - Talent Profiles: save, apply, delete builds")
 end
 
 function FTK:OnSlash(msg)
-  msg = Trim(msg):lower()
+  local raw = Trim(msg)
+  local word, rest = raw:match("^(%S+)%s*(.*)$")
+  local handler = word and self.slashHandlers[word:lower()]
+  if handler then
+    local ok, err = pcall(handler, rest or "")
+    if not ok then
+      self:Print("Command failed: " .. tostring(err))
+    end
+    return
+  end
+  msg = raw:lower()
   if msg == "" or msg == "toggle" or msg == "menu" then
     if self.ToggleMenu then
       self:ToggleMenu()
