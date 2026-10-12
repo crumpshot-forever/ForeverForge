@@ -60,6 +60,7 @@ end
 -- Which saved build the side tabs last staged, and for which spec index.
 local viewedName, viewedSpec
 local RefreshSideTabs
+local ClearPending
 
 local function TouchTabs()
   if RefreshSideTabs then
@@ -247,8 +248,20 @@ local function ReadNodes(configID, treeIDs)
 end
 
 local function HasStaged(configID)
+  if C_Traits and type(C_Traits.GetStagedChanges) == "function" then
+    local ok, changes = Call(C_Traits.GetStagedChanges, configID)
+    if ok and type(changes) == "table" and #changes > 0 then
+      return true
+    end
+  end
+  if not C_Traits or type(C_Traits.ConfigHasStagedChanges) ~= "function" then
+    return false
+  end
   local ok, staged = Call(C_Traits.ConfigHasStagedChanges, configID)
-  return ok and staged == true
+  if not ok or staged == nil or staged == false or IsSecret(staged) then
+    return false
+  end
+  return true
 end
 
 local function NodeName(configID, nodeID, entryID)
@@ -385,15 +398,66 @@ local function Rollback(configID)
   if type(fn) ~= "function" then
     return false
   end
-  local ok = pcall(fn, configID)
-  return ok
+  local ok, result = pcall(fn, configID)
+  return ok and result ~= false
+end
+
+-- Ranks above the committed build are the "pending changes" the talent window can undo.
+local function RanksAreDirty(configID, treeIDs)
+  if HasStaged(configID) then
+    return true
+  end
+  local nodes = ReadNodes(configID, treeIDs)
+  local i
+  for i = 1, #nodes do
+    local n = nodes[i]
+    local okInfo, info = Call(C_Traits.GetNodeInfo, configID, n.nodeID)
+    if okInfo and type(info) == "table" then
+      local current = PlainNumber(info.currentRank) or 0
+      local active = PlainNumber(info.activeRank) or 0
+      if current > active then
+        return true
+      end
+    end
+  end
+  return false
+end
+
+local function RefundToCommitted(configID, treeIDs)
+  if not C_Traits or type(C_Traits.RefundRank) ~= "function" then
+    return
+  end
+  local guard = 0
+  while guard < 40 do
+    guard = guard + 1
+    local nodes = ReadNodes(configID, treeIDs)
+    local moved = false
+    local i
+    for i = 1, #nodes do
+      local n = nodes[i]
+      local okInfo, info = Call(C_Traits.GetNodeInfo, configID, n.nodeID)
+      if okInfo and type(info) == "table" then
+        local current = PlainNumber(info.currentRank) or 0
+        local active = PlainNumber(info.activeRank) or 0
+        if current > active then
+          local ok, result = pcall(C_Traits.RefundRank, configID, n.nodeID)
+          if ok and result ~= false then
+            moved = true
+          end
+        end
+      end
+    end
+    if not moved then
+      return
+    end
+  end
 end
 
 -- spec and configID are optional. The menu and slash command leave them nil
 -- (active spec, active config). Side tabs pass the tree on screen.
--- replaceStaged clears a previous preview before purchasing, and only after
--- the committed-points check passes.
-local function ApplyBuild(name, spec, configID, replaceStaged)
+-- replaceStaged undoes pending changes before purchasing.
+-- skipClear is the follow-up call after the talent window's own undo button.
+local function ApplyBuild(name, spec, configID, replaceStaged, skipClear)
   if InCombatLockdown and InCombatLockdown() then
     Say("Can't apply a build in combat.")
     return false
@@ -415,16 +479,24 @@ local function ApplyBuild(name, spec, configID, replaceStaged)
     return false
   end
 
+  if replaceStaged and not skipClear and ClearPending then
+    local deferred = ClearPending(configID, treeIDs, function()
+      ApplyBuild(name, spec, configID, true, true)
+    end)
+    if deferred then
+      return false
+    end
+  end
+  if replaceStaged then
+    RefundToCommitted(configID, treeIDs)
+  end
+
   local nodes = ReadNodes(configID, treeIDs)
   if CommittedBlocks(nodes, saved, configID) then
     return false
   end
-  if HasStaged(configID) then
-    if replaceStaged and Rollback(configID) and not HasStaged(configID) then
-      nodes = ReadNodes(configID, treeIDs)
-    else
-      Say("You already have unapplied talent changes. Only adding points on top of them.")
-    end
+  if not replaceStaged and HasStaged(configID) then
+    Say("You already have unapplied talent changes. Only adding points on top of them.")
   end
   local i
 
@@ -609,9 +681,410 @@ local function PaneConfigID(pane)
   return nil
 end
 
-local function SpecIcon(spec)
-  local _, icon = SpecInfoAt(spec)
-  if type(icon) == "number" or (type(icon) == "string" and icon ~= "") then
+local function ButtonLabel(btn)
+  if type(btn) ~= "table" then
+    return nil
+  end
+  if btn.GetText then
+    local ok, text = pcall(btn.GetText, btn)
+    text = ok and PlainString(text) or nil
+    if text then
+      return text
+    end
+  end
+  if not btn.GetRegions then
+    return nil
+  end
+  local regions
+  pcall(function()
+    regions = { btn:GetRegions() }
+  end)
+  if not regions then
+    return nil
+  end
+  local i
+  for i = 1, #regions do
+    local region = regions[i]
+    if type(region) == "table" and region.GetObjectType and region.GetText then
+      local objType
+      pcall(function()
+        objType = region:GetObjectType()
+      end)
+      if objType == "FontString" then
+        local ok, text = pcall(region.GetText, region)
+        text = ok and PlainString(text) or nil
+        if text then
+          return text
+        end
+      end
+    end
+  end
+  return nil
+end
+
+local function ClickUndo(root)
+  if type(root) ~= "table" or not root.GetChildren then
+    return false
+  end
+  local found
+  local function walk(frame, depth)
+    if found or type(frame) ~= "table" or depth > 8 then
+      return
+    end
+    local objType
+    if frame.GetObjectType then
+      pcall(function()
+        objType = frame:GetObjectType()
+      end)
+    end
+    if objType == "Button" then
+      local text = ButtonLabel(frame)
+      local shown = false
+      pcall(function()
+        shown = frame:IsShown()
+      end)
+      if shown and text then
+        local lower = text:lower()
+        if lower:find("undo", 1, true) and lower:find("pending", 1, true) then
+          found = frame
+          return
+        end
+      end
+    end
+    if frame.GetChildren then
+      local children
+      pcall(function()
+        children = { frame:GetChildren() }
+      end)
+      if children then
+        local i
+        for i = 1, #children do
+          walk(children[i], depth + 1)
+        end
+      end
+    end
+  end
+  walk(root, 0)
+  if not found then
+    return false
+  end
+  local clicked = false
+  if found.GetScript then
+    local ok, script = pcall(found.GetScript, found, "OnClick")
+    if ok and type(script) == "function" then
+      clicked = pcall(script, found, "LeftButton")
+    end
+  end
+  if found.Click then
+    clicked = pcall(found.Click, found) or clicked
+  end
+  return clicked
+end
+
+-- Clears the talent window's pending preview. Calls resume next frame when
+-- the only working undo is the window's own button.
+ClearPending = function(configID, treeIDs, resume)
+  local _, pane = TalentHost()
+  Rollback(configID)
+  if pane and type(pane.RollbackConfig) == "function" then
+    pcall(pane.RollbackConfig, pane)
+  end
+  RefundToCommitted(configID, treeIDs)
+  if not RanksAreDirty(configID, treeIDs) then
+    return false
+  end
+  local host = TalentHost()
+  ClickUndo(pane)
+  if host and host ~= pane then
+    ClickUndo(host)
+  end
+  RefundToCommitted(configID, treeIDs)
+  if RanksAreDirty(configID, treeIDs) and resume and C_Timer and C_Timer.After then
+    C_Timer.After(0, resume)
+    return true
+  end
+  return false
+end
+
+-- Tree header icons. Frame art wins, because that is the icon beside the tree name.
+local TREE_NAMES = {
+  DRUID = { "Balance", "Feral Combat", "Restoration" },
+  HUNTER = { "Beast Mastery", "Marksmanship", "Survival" },
+  MAGE = { "Arcane", "Fire", "Frost" },
+  PALADIN = { "Holy", "Protection", "Retribution" },
+  PRIEST = { "Discipline", "Holy", "Shadow" },
+  ROGUE = { "Assassination", "Combat", "Subtlety" },
+  SHAMAN = { "Elemental", "Enhancement", "Restoration" },
+  WARLOCK = { "Affliction", "Demonology", "Destruction" },
+  WARRIOR = { "Arms", "Fury", "Protection" },
+}
+
+local TREE_ICONS = {
+  DRUID = {
+    "Interface\\Icons\\Spell_Nature_StarFall",
+    "Interface\\Icons\\Ability_Racial_BearForm",
+    "Interface\\Icons\\Spell_Nature_HealingTouch",
+  },
+  HUNTER = {
+    "Interface\\Icons\\Ability_Hunter_BeastTaming",
+    "Interface\\Icons\\Ability_Marksmanship",
+    "Interface\\Icons\\Ability_Hunter_SwiftStrike",
+  },
+  MAGE = {
+    "Interface\\Icons\\Spell_Holy_MagicalSentry",
+    "Interface\\Icons\\Spell_Fire_FireBolt02",
+    "Interface\\Icons\\Spell_Frost_FrostBolt02",
+  },
+  PALADIN = {
+    "Interface\\Icons\\Spell_Holy_HolyBolt",
+    "Interface\\Icons\\Spell_Holy_DevotionAura",
+    "Interface\\Icons\\Spell_Holy_AuraOfLight",
+  },
+  PRIEST = {
+    "Interface\\Icons\\Spell_Holy_PowerWordShield",
+    "Interface\\Icons\\Spell_Holy_Heal",
+    "Interface\\Icons\\Spell_Shadow_ShadowWordPain",
+  },
+  ROGUE = {
+    "Interface\\Icons\\Ability_Rogue_Eviscerate",
+    "Interface\\Icons\\Ability_BackStab",
+    "Interface\\Icons\\Ability_Stealth",
+  },
+  SHAMAN = {
+    "Interface\\Icons\\Spell_Nature_Lightning",
+    "Interface\\Icons\\Spell_Nature_LightningShield",
+    "Interface\\Icons\\Spell_Nature_MagicImmunity",
+  },
+  WARLOCK = {
+    "Interface\\Icons\\Spell_Shadow_DeathCoil",
+    "Interface\\Icons\\Spell_Shadow_Metamorphosis",
+    "Interface\\Icons\\Spell_Shadow_RainOfFire",
+  },
+  WARRIOR = {
+    "Interface\\Icons\\Ability_Warrior_SavageBlow",
+    "Interface\\Icons\\Ability_Warrior_InnerRage",
+    "Interface\\Icons\\Ability_Warrior_DefensiveStance",
+  },
+}
+
+local function ClassToken()
+  if not UnitClass then
+    return nil
+  end
+  local ok, _, token = pcall(UnitClass, "player")
+  return ok and PlainString(token) or nil
+end
+
+local function UsableTexture(value)
+  if IsSecret(value) then
+    return nil
+  end
+  if type(value) == "number" and value > 0 then
+    return value
+  end
+  if type(value) == "string" and value ~= "" and value ~= "0" then
+    return value
+  end
+  return nil
+end
+
+local function TabInfo(index)
+  if type(GetTalentTabInfo) ~= "function" then
+    return nil, nil
+  end
+  local name, icon
+  pcall(function()
+    local a, b, _, d = GetTalentTabInfo(index)
+    if type(a) == "string" and not IsSecret(a) then
+      name = a
+      icon = UsableTexture(b)
+    elseif type(b) == "string" and not IsSecret(b) then
+      name = b
+      icon = UsableTexture(d)
+    end
+  end)
+  return name, icon
+end
+
+local function TextureNearLabel(fs)
+  local best, bestScore
+  local function consider(region)
+    if type(region) ~= "table" or not region.GetObjectType then
+      return
+    end
+    local objType
+    pcall(function()
+      objType = region:GetObjectType()
+    end)
+    if objType ~= "Texture" then
+      return
+    end
+    local tex, w, h
+    pcall(function()
+      tex = region:GetTexture()
+      w = region:GetWidth()
+      h = region:GetHeight()
+    end)
+    tex = UsableTexture(tex)
+    w = PlainNumber(w)
+    h = PlainNumber(h)
+    if not tex or not w or not h or w < 16 or h < 16 or w > 72 or h > 72 then
+      return
+    end
+    local score = math.abs(w - h)
+    if not bestScore or score < bestScore then
+      bestScore = score
+      best = tex
+    end
+  end
+  local parent = fs.GetParent and fs:GetParent()
+  local depth = 0
+  while type(parent) == "table" and depth < 3 do
+    if parent.GetRegions then
+      local regions
+      pcall(function()
+        regions = { parent:GetRegions() }
+      end)
+      if regions then
+        local i
+        for i = 1, #regions do
+          consider(regions[i])
+        end
+      end
+    end
+    parent = parent.GetParent and parent:GetParent()
+    depth = depth + 1
+  end
+  return best
+end
+
+local function IconsByTreeName(root)
+  local found = {}
+  if type(root) ~= "table" then
+    return found
+  end
+  local function walk(frame, depth)
+    if type(frame) ~= "table" or depth > 8 or not frame.GetRegions then
+      return
+    end
+    local regions
+    pcall(function()
+      regions = { frame:GetRegions() }
+    end)
+    if regions then
+      local i
+      for i = 1, #regions do
+        local region = regions[i]
+        if type(region) == "table" and region.GetObjectType and region.GetText then
+          local objType, text
+          pcall(function()
+            objType = region:GetObjectType()
+            text = region:GetText()
+          end)
+          text = objType == "FontString" and PlainString(text) or nil
+          if text and not found[text] then
+            local tex = TextureNearLabel(region)
+            if tex then
+              found[text] = tex
+            end
+          end
+        end
+      end
+    end
+    if frame.GetChildren then
+      local children
+      pcall(function()
+        children = { frame:GetChildren() }
+      end)
+      if children then
+        local i
+        for i = 1, #children do
+          walk(children[i], depth + 1)
+        end
+      end
+    end
+  end
+  walk(root, 0)
+  return found
+end
+
+local function TreeVisuals(treeIDs, root)
+  local token = ClassToken()
+  local names = token and TREE_NAMES[token] or nil
+  local icons = token and TREE_ICONS[token] or nil
+  local live = IconsByTreeName(root)
+  local trees = {}
+  local count = treeIDs and #treeIDs or 0
+  if names and #names > count then
+    count = #names
+  end
+  local i
+  for i = 1, count do
+    local apiName, apiIcon = TabInfo(i)
+    local name = apiName or (names and names[i]) or nil
+    local icon = apiIcon
+    if name and live[name] then
+      icon = live[name]
+    end
+    if not icon and icons then
+      icon = icons[i]
+    end
+    trees[i] = { name = name, icon = icon }
+  end
+  return trees
+end
+
+local function DominantTreeIndex(saved, configID, treeIDs)
+  if type(saved) ~= "table" or type(treeIDs) ~= "table" then
+    return nil
+  end
+  local nodeTree = {}
+  local t
+  for t = 1, #treeIDs do
+    local treeID = PlainNumber(treeIDs[t])
+    local ok, ids = Call(C_Traits.GetTreeNodes, treeID)
+    if treeID and ok and type(ids) == "table" then
+      local i
+      for i = 1, #ids do
+        local nodeID = PlainNumber(ids[i])
+        if nodeID then
+          nodeTree[nodeID] = t
+        end
+      end
+    end
+  end
+  local totals = {}
+  local key, row
+  for key, row in pairs(saved) do
+    local nodeID = tonumber(key)
+    local idx = nodeID and nodeTree[nodeID]
+    local rank = type(row) == "table" and PlainNumber(row.rank) or 0
+    if idx and rank and rank > 0 then
+      totals[idx] = (totals[idx] or 0) + rank
+    end
+  end
+  local bestIdx, best = nil, 0
+  for t = 1, #treeIDs do
+    local pts = totals[t] or 0
+    if pts > best then
+      best = pts
+      bestIdx = t
+    end
+  end
+  if not bestIdx or best <= 0 then
+    return nil
+  end
+  return bestIdx
+end
+
+local function ProfileIcon(saved, configID, treeIDs, root)
+  local idx = DominantTreeIndex(saved, configID, treeIDs)
+  if not idx then
+    return "Interface\\Icons\\INV_Misc_QuestionMark"
+  end
+  local trees = TreeVisuals(treeIDs, root)
+  local icon = trees[idx] and trees[idx].icon
+  if icon then
     return icon
   end
   return "Interface\\Icons\\INV_Misc_QuestionMark"
@@ -646,18 +1119,6 @@ local function ViewBuild(name)
     Say("This talent tree isn't ready to stage yet.")
     return
   end
-  if viewedName == found and viewedSpec == spec then
-    local id = select(1, ResolveConfig(configID))
-    if id and HasStaged(id) and (not Rollback(id) or HasStaged(id)) then
-      Say("Couldn't clear the talent preview on this client.")
-      TouchTabs()
-      return
-    end
-    viewedName, viewedSpec = nil, nil
-    Say("Cleared \"" .. found .. "\". Showing committed talents.")
-    TouchTabs()
-    return
-  end
   ApplyBuild(found, spec, configID, true)
 end
 
@@ -667,15 +1128,15 @@ local function EnsureTabButton(index)
     return btn
   end
   btn = CreateFrame("Button", nil, profileTabs)
-  btn:SetSize(72, 46)
+  btn:SetSize(72, 72)
   btn:RegisterForClicks("LeftButtonUp")
   btn:EnableMouse(true)
   btn.bg = btn:CreateTexture(nil, "BACKGROUND")
   btn.bg:SetAllPoints()
   Solid(btn.bg, 0.04, 0.04, 0.04, 0.92)
   btn.icon = btn:CreateTexture(nil, "ARTWORK")
-  btn.icon:SetPoint("TOPLEFT", 3, -3)
-  btn.icon:SetPoint("BOTTOMRIGHT", -3, 3)
+  btn.icon:SetSize(66, 66)
+  btn.icon:SetPoint("CENTER", 0, 0)
   btn.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
   btn.shade = btn:CreateTexture(nil, "OVERLAY")
   btn.shade:SetPoint("BOTTOMLEFT", 3, 3)
@@ -725,7 +1186,7 @@ local function EnsureTabButton(index)
     if points then
       GameTooltip:AddLine(tostring(points) .. " points", 0.8, 0.8, 0.8)
     end
-    GameTooltip:AddLine("Click to view this build in the talent window. Click again to clear the preview.", 1, 1, 1, true)
+    GameTooltip:AddLine("Click to undo pending changes and view this build.", 1, 1, 1, true)
     GameTooltip:Show()
   end)
   btn:SetScript("OnLeave", function()
@@ -827,11 +1288,12 @@ RefreshSideTabs = function()
       width = guess
     end
   end
-  if width > 130 then
-    width = 130
+  if width > 96 then
+    width = 96
   end
-  local height = 46
-  local icon = SpecIcon(spec)
+  local height = width
+  local paneConfig = PaneConfigID(pane)
+  local resolvedID, treeIDs = ResolveConfig(paneConfig)
   for i = 1, math.max(#names, #tabButtons) do
     local name = names[i]
     if name then
@@ -839,9 +1301,12 @@ RefreshSideTabs = function()
       btn.profileName = name
       btn.profileSpec = spec
       btn:SetSize(width, height)
+      btn.icon:SetSize(width - 6, width - 6)
       btn.label:SetWidth(width - 8)
       btn.label:SetText(FTK.Plain(name))
-      btn.icon:SetTexture(icon)
+      local saved = Builds(spec)
+      local build = saved and saved[name]
+      btn.icon:SetTexture(ProfileIcon(build and build.nodes, resolvedID, treeIDs, frame))
       local selected = viewedName == name and viewedSpec == spec
       btn.icon:SetAlpha(selected and 1 or 0.82)
       PaintBorder(btn, selected)
