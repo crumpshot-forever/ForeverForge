@@ -32,6 +32,8 @@ Do not rename the folder. The game only loads it when the folder name matches `F
 - **Quick Accept.** Opt-in Accept Summon, Accept Res, auto-accept party invites, Decline Duels, and BG Auto-Release (all off by default).
 - **Talent Profiles.** Save talent builds by name per character and spec. Apply stages the points for you to review and click Apply Changes. Saved builds also show as brass nameplates on the right of the talent window. Each plate shows the saved name and the tree that build spends the most points in. `/ff talents` for chat commands.
 
+To hide the minimap button, untick **Minimap icon** in the menu or type `/ff minimap`. `/ff` always opens the menu.
+
 Chat lines from these tools stay in your own chat window and start with `Forever Forge:`.
 
 Changes are listed in [CHANGELOG.md](CHANGELOG.md).

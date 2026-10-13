@@ -194,6 +194,32 @@ function FTK:InitMinimap()
   if not self.minimapButton.dragging then
     self:PlaceMinimapButton(self.minimapButton)
   end
+  self.minimapButton:SetShown(not self:IsMinimapHidden())
+end
+
+-- Saved per account in ForeverForgeDB.minimap.hide. Shown by default.
+function FTK:IsMinimapHidden()
+  self:InitDB()
+  return self.db.minimap.hide == true
+end
+
+function FTK:SetMinimapHidden(hide)
+  self:InitDB()
+  hide = hide == true
+  self.db.minimap.hide = hide
+  if self.minimapButton then
+    self.minimapButton:SetShown(not hide)
+  elseif not hide then
+    self:InitMinimap()
+  end
+  if hide then
+    self:Print("Minimap icon hidden. Type /ff minimap to show it again.")
+  else
+    self:Print("Minimap icon shown.")
+  end
+  if self.RefreshMinimapToggle then
+    self:RefreshMinimapToggle()
+  end
 end
 
 function FTK:ResetMinimap()

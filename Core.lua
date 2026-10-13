@@ -274,6 +274,7 @@ end
 function FTK:PrintHelp()
   self:Print("/ff, /forge, or /foreverforge - open or close the menu")
   self:Print("/ff reset - move the minimap button back")
+  self:Print("/ff minimap - show or hide the minimap button")
   self:Print("/ff modules - list features")
   self:Print("/ff talents - Talent Profiles: save, apply, or use the talent-window tabs")
 end
@@ -316,6 +317,12 @@ function FTK:OnSlash(msg)
     if self.ResetMinimap then
       self:ResetMinimap()
       self:Print("Minimap button reset.")
+    end
+    return
+  end
+  if msg == "minimap" then
+    if self.SetMinimapHidden then
+      self:SetMinimapHidden(not self:IsMinimapHidden())
     end
     return
   end
