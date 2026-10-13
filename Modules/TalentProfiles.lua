@@ -8,10 +8,10 @@
   has points the saved build does not, Apply places nothing and asks for a
   trainer reset.
 
-  Saved builds for the spec on screen also show as square tabs on the right
-  of the talent window. Each tab is colored for the talent tree that build
-  spends the most points in, and shows the saved name plus that tree's name.
-  Click a tab to undo pending changes, then stage that build.
+  Saved builds for the spec on screen also show as brass nameplates on the
+  right of the talent window. Each plate shows the saved name and the talent
+  tree that build spends the most points in. Click a plate to undo pending
+  changes, then stage that build.
 ]]
 
 local FTK = ForeverForge
@@ -821,14 +821,10 @@ local TREE_NAMES = {
   WARRIOR = { "Arms", "Fury", "Protection" },
 }
 
--- One fill per tree slot. This client does not hand tree icons to addons,
--- and spell-icon paths paint as black. Left, middle, right.
-local TREE_COLORS = {
-  { 0.40, 0.18, 0.64 },
-  { 0.70, 0.32, 0.08 },
-  { 0.10, 0.42, 0.24 },
-}
-local NEUTRAL_COLOR = { 0.26, 0.22, 0.18 }
+-- Nameplates use the talent frame's brown and brass. The viewed build is
+-- the one with the bright gold edge.
+local PLATE_HEIGHT = 40
+local PLATE_GAP = 4
 
 local function ClassToken()
   if not UnitClass then
@@ -955,31 +951,30 @@ local function DominantTreeIndex(saved, tabs, tabCount)
   return bestIdx
 end
 
-local function ProfileStyle(saved, tabs, tabCount)
-  local idx = DominantTreeIndex(saved, tabs, tabCount)
-  local color = (idx and TREE_COLORS[idx]) or NEUTRAL_COLOR
-  return color, TreeName(idx)
+local function ProfileTreeName(saved, tabs, tabCount)
+  return TreeName(DominantTreeIndex(saved, tabs, tabCount))
 end
 
-local function PaintFill(tex, color, selected)
-  local r, g, b = color[1], color[2], color[3]
+local function PaintPlate(btn, selected)
   if selected then
-    r = math.min(1, r + 0.12)
-    g = math.min(1, g + 0.08)
-    b = math.min(1, b + 0.06)
+    Solid(btn.fill, 0.16, 0.11, 0.05, 0.96)
+  else
+    Solid(btn.fill, 0.08, 0.06, 0.04, 0.94)
   end
-  Solid(tex, r, g, b, 1)
-end
-
-local function PaintBorder(btn, selected)
-  local r, g, b, a = 0.2, 0.16, 0.08, 0.95
+  local r, g, b = 0.48, 0.38, 0.18
+  local thickness = 1
   if selected then
-    r, g, b, a = 0.95, 0.78, 0.25, 1
+    r, g, b = 0.95, 0.78, 0.25
+    thickness = 2
   end
-  Solid(btn.edgeTop, r, g, b, a)
-  Solid(btn.edgeBottom, r, g, b, a)
-  Solid(btn.edgeLeft, r, g, b, a)
-  Solid(btn.edgeRight, r, g, b, a)
+  Solid(btn.edgeTop, r, g, b, 1)
+  Solid(btn.edgeBottom, r, g, b, 1)
+  Solid(btn.edgeLeft, r, g, b, 1)
+  Solid(btn.edgeRight, r, g, b, 1)
+  btn.edgeTop:SetHeight(thickness)
+  btn.edgeBottom:SetHeight(thickness)
+  btn.edgeLeft:SetWidth(thickness)
+  btn.edgeRight:SetWidth(thickness)
 end
 
 local function ViewBuild(name)
@@ -1013,24 +1008,26 @@ local function EnsureTabButton(index)
   btn:RegisterForClicks("LeftButtonUp")
   btn:EnableMouse(true)
   btn.fill = btn:CreateTexture(nil, "BACKGROUND")
-  btn.fill:SetPoint("TOPLEFT", 2, -2)
-  btn.fill:SetPoint("BOTTOMRIGHT", -2, 2)
-  Solid(btn.fill, NEUTRAL_COLOR[1], NEUTRAL_COLOR[2], NEUTRAL_COLOR[3], 1)
-  local function Label(size, y)
+  btn.fill:SetPoint("TOPLEFT", 1, -1)
+  btn.fill:SetPoint("BOTTOMRIGHT", -1, 1)
+  Solid(btn.fill, 0.08, 0.06, 0.04, 0.94)
+  local function Label(y)
     local fs = btn:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     pcall(fs.SetDrawLayer, fs, "OVERLAY", 7)
     fs:SetPoint("CENTER", 0, y)
     fs:SetJustifyH("CENTER")
     fs:SetWordWrap(false)
-    local font = fs:GetFont()
-    if font then
-      fs:SetFont(font, size, "OUTLINE")
-    end
     return fs
   end
-  btn.nameText = Label(11, 7)
-  btn.treeText = Label(9, -8)
-  btn.treeText:SetTextColor(1, 0.93, 0.78)
+  btn.nameText = Label(6)
+  btn.nameText:SetTextColor(1, 0.82, 0)
+  btn.treeText = Label(-8)
+  btn.treeText:SetTextColor(0.72, 0.64, 0.46)
+  btn.hover = btn:CreateTexture(nil, "ARTWORK")
+  btn.hover:SetPoint("TOPLEFT", 1, -1)
+  btn.hover:SetPoint("BOTTOMRIGHT", -1, 1)
+  Solid(btn.hover, 1, 0.82, 0, 0.08)
+  btn.hover:Hide()
   local function Edge()
     local tex = btn:CreateTexture(nil, "OVERLAY")
     return tex
@@ -1055,6 +1052,9 @@ local function EnsureTabButton(index)
     ViewBuild(self.profileName)
   end)
   btn:SetScript("OnEnter", function(self)
+    if self.hover then
+      self.hover:Show()
+    end
     if not GameTooltip or not self.profileName then
       return
     end
@@ -1071,7 +1071,10 @@ local function EnsureTabButton(index)
     GameTooltip:AddLine("Click to undo pending changes and view this build.", 1, 1, 1, true)
     GameTooltip:Show()
   end)
-  btn:SetScript("OnLeave", function()
+  btn:SetScript("OnLeave", function(self)
+    if self.hover then
+      self.hover:Hide()
+    end
     if GameTooltip then
       GameTooltip:Hide()
     end
@@ -1162,21 +1165,32 @@ RefreshSideTabs = function()
     end)
   end
   profileTabs.specSeen = spec
-  local width = 72
+  local paneConfig = PaneConfigID(pane)
+  local resolvedID, treeIDs = ResolveConfig(paneConfig)
+  local tabs, tabCount = TabByNode(resolvedID, treeIDs)
+  local saved = Builds(spec)
+  local treeNames = {}
+  local width = 112
   local i
   for i = 1, #names do
-    local guess = 18 + #names[i] * 7
+    local build = saved and saved[names[i]]
+    local treeName = ProfileTreeName(build and build.nodes, tabs, tabCount)
+    treeNames[i] = treeName
+    local guess = 22 + #names[i] * 7
+    if treeName then
+      local treeGuess = 22 + #treeName * 6
+      if treeGuess > guess then
+        guess = treeGuess
+      end
+    end
     if guess > width then
       width = guess
     end
   end
-  if width > 96 then
-    width = 96
+  if width > 160 then
+    width = 160
   end
-  local height = width
-  local paneConfig = PaneConfigID(pane)
-  local resolvedID, treeIDs = ResolveConfig(paneConfig)
-  local tabs, tabCount = TabByNode(resolvedID, treeIDs)
+  local height = PLATE_HEIGHT
   for i = 1, math.max(#names, #tabButtons) do
     local name = names[i]
     if name then
@@ -1184,28 +1198,25 @@ RefreshSideTabs = function()
       btn.profileName = name
       btn.profileSpec = spec
       btn:SetSize(width, height)
-      btn.nameText:SetWidth(width - 10)
-      btn.treeText:SetWidth(width - 10)
+      btn.nameText:SetWidth(width - 12)
+      btn.treeText:SetWidth(width - 12)
       btn.nameText:SetText(FTK.Plain(name))
-      local saved = Builds(spec)
-      local build = saved and saved[name]
-      local color, treeName = ProfileStyle(build and build.nodes, tabs, tabCount)
+      local treeName = treeNames[i]
       btn.treeName = treeName
       local selected = viewedName == name and viewedSpec == spec
-      PaintFill(btn.fill, color, selected)
+      PaintPlate(btn, selected)
       if treeName then
         btn.treeText:SetText(treeName)
         btn.treeText:Show()
         btn.nameText:ClearAllPoints()
-        btn.nameText:SetPoint("CENTER", 0, 7)
+        btn.nameText:SetPoint("CENTER", 0, 6)
       else
         btn.treeText:Hide()
         btn.nameText:ClearAllPoints()
         btn.nameText:SetPoint("CENTER", 0, 0)
       end
-      PaintBorder(btn, selected)
       btn:ClearAllPoints()
-      btn:SetPoint("TOPLEFT", profileTabs, "TOPLEFT", 0, -((i - 1) * (height + 4)))
+      btn:SetPoint("TOPLEFT", profileTabs, "TOPLEFT", 0, -((i - 1) * (height + PLATE_GAP)))
       btn:Show()
     elseif tabButtons[i] then
       tabButtons[i]:Hide()
@@ -1230,7 +1241,7 @@ RefreshSideTabs = function()
       end
     end
   end
-  profileTabs:SetSize(width, #names * (height + 4) - 4)
+  profileTabs:SetSize(width, #names * (height + PLATE_GAP) - PLATE_GAP)
   profileTabs:ClearAllPoints()
   profileTabs:SetPoint("TOPLEFT", frame, "TOPRIGHT", 4, -6)
   local strata = frame.GetFrameStrata and frame:GetFrameStrata() or "MEDIUM"
@@ -1428,7 +1439,7 @@ end
 FTK:RegisterModule({
   id = MODULE_ID,
   name = "Talent Profiles",
-  description = "Save talent builds by name per character and spec. Each saved build is a colored tab on the right of the talent window, labeled with the tree it spends the most points in. Apply stages the points; you review and click Apply Changes. Needs a trainer reset if your committed points don't match.",
+  description = "Save talent builds by name per character and spec. Each saved build is a brass nameplate on the right of the talent window, labeled with the tree it spends the most points in. Apply stages the points; you review and click Apply Changes. Needs a trainer reset if your committed points don't match.",
   defaultEnabled = true,
   BuildOptions = BuildOptions,
   onEnable = function()
