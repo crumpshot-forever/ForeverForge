@@ -838,35 +838,50 @@ local function ClassToken()
   return ok and PlainString(token) or nil
 end
 
+local function TalentTabName(index)
+  if type(GetTalentTabInfo) ~= "function" then
+    return nil
+  end
+  local name
+  pcall(function()
+    local a, b = GetTalentTabInfo(index)
+    if type(a) == "string" and a ~= "" and not IsSecret(a) then
+      name = a
+    elseif type(b) == "string" and b ~= "" and not IsSecret(b) then
+      name = b
+    end
+  end)
+  return PlainString(name)
+end
+
 local function TreeName(index)
   if not index then
     return nil
   end
-  if type(GetTalentTabInfo) == "function" then
-    local name
-    pcall(function()
-      local a, b = GetTalentTabInfo(index)
-      if type(a) == "string" and a ~= "" and not IsSecret(a) then
-        name = a
-      elseif type(b) == "string" and b ~= "" and not IsSecret(b) then
-        name = b
-      end
-    end)
-    name = PlainString(name)
-    if name then
-      return name
-    end
-  end
   local token = ClassToken()
   local names = token and TREE_NAMES[token]
-  return names and names[index] or nil
+  local fallback = names and names[index] or nil
+  local name = TalentTabName(index)
+  if not name then
+    return fallback
+  end
+  -- Some clients ignore the tab index and always return the first tree.
+  if index > 1 and name == TalentTabName(1) and fallback then
+    return fallback
+  end
+  return name
 end
 
-local function DominantTreeIndex(saved, configID, treeIDs)
-  if type(saved) ~= "table" or type(treeIDs) ~= "table" then
-    return nil
+-- The three classic tabs are one trait tree, drawn as columns. Nodes inside
+-- a tab sit a few hundred units apart. The next tab starts more than 2000
+-- further along posX, so 1500 is the split. Left to right is tab order.
+local TAB_GAP = 1500
+
+local function TabByNode(configID, treeIDs)
+  local pos = {}
+  if not configID or type(treeIDs) ~= "table" then
+    return pos, 0
   end
-  local nodeTree = {}
   local t
   for t = 1, #treeIDs do
     local treeID = PlainNumber(treeIDs[t])
@@ -875,24 +890,59 @@ local function DominantTreeIndex(saved, configID, treeIDs)
       local i
       for i = 1, #ids do
         local nodeID = PlainNumber(ids[i])
-        if nodeID then
-          nodeTree[nodeID] = t
+        if nodeID and pos[nodeID] == nil then
+          local okNode, info = Call(C_Traits.GetNodeInfo, configID, nodeID)
+          local x = okNode and type(info) == "table" and PlainNumber(info.posX)
+          if x then
+            pos[nodeID] = x
+          end
         end
       end
     end
+  end
+  local order = {}
+  local nodeID, x
+  for nodeID, x in pairs(pos) do
+    order[#order + 1] = { id = nodeID, x = x }
+  end
+  table.sort(order, function(a, b)
+    if a.x ~= b.x then
+      return a.x < b.x
+    end
+    return a.id < b.id
+  end)
+  local tabs = {}
+  local lastX
+  local count = 0
+  local i
+  for i = 1, #order do
+    local row = order[i]
+    if not lastX or row.x - lastX > TAB_GAP then
+      count = count + 1
+    end
+    tabs[row.id] = count
+    lastX = row.x
+  end
+  return tabs, count
+end
+
+local function DominantTreeIndex(saved, tabs, tabCount)
+  if type(saved) ~= "table" or type(tabs) ~= "table" or not tabCount or tabCount < 1 then
+    return nil
   end
   local totals = {}
   local key, row
   for key, row in pairs(saved) do
     local nodeID = tonumber(key)
-    local idx = nodeID and nodeTree[nodeID]
+    local idx = nodeID and tabs[nodeID]
     local rank = type(row) == "table" and PlainNumber(row.rank) or 0
     if idx and rank and rank > 0 then
       totals[idx] = (totals[idx] or 0) + rank
     end
   end
   local bestIdx, best = nil, 0
-  for t = 1, #treeIDs do
+  local t
+  for t = 1, tabCount do
     local pts = totals[t] or 0
     if pts > best then
       best = pts
@@ -905,8 +955,8 @@ local function DominantTreeIndex(saved, configID, treeIDs)
   return bestIdx
 end
 
-local function ProfileStyle(saved, configID, treeIDs)
-  local idx = DominantTreeIndex(saved, configID, treeIDs)
+local function ProfileStyle(saved, tabs, tabCount)
+  local idx = DominantTreeIndex(saved, tabs, tabCount)
   local color = (idx and TREE_COLORS[idx]) or NEUTRAL_COLOR
   return color, TreeName(idx)
 end
@@ -1126,6 +1176,7 @@ RefreshSideTabs = function()
   local height = width
   local paneConfig = PaneConfigID(pane)
   local resolvedID, treeIDs = ResolveConfig(paneConfig)
+  local tabs, tabCount = TabByNode(resolvedID, treeIDs)
   for i = 1, math.max(#names, #tabButtons) do
     local name = names[i]
     if name then
@@ -1138,7 +1189,7 @@ RefreshSideTabs = function()
       btn.nameText:SetText(FTK.Plain(name))
       local saved = Builds(spec)
       local build = saved and saved[name]
-      local color, treeName = ProfileStyle(build and build.nodes, resolvedID, treeIDs)
+      local color, treeName = ProfileStyle(build and build.nodes, tabs, tabCount)
       btn.treeName = treeName
       local selected = viewedName == name and viewedSpec == spec
       PaintFill(btn.fill, color, selected)
