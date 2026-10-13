@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.0
+
+- **Talent Profiles.** Save talent builds by name per character and spec, then Apply to stage the points. Nothing is committed: review and click Apply Changes. If your committed points do not match the build, it says Reset at trainer first and places nothing. Saved builds also show as brass nameplates on the right of the talent window. Each plate shows the saved name and the talent tree that build spends the most points in. Clicking a plate undoes pending changes, then stages that build. Menu page plus `/ff talents`.
+
 ## 1.4.0
 
 - **Quick Accept.** Opt-in Accept Summon, Accept Res, auto-accept party invites, Decline Duels, and BG Auto-Release (all off by default).
