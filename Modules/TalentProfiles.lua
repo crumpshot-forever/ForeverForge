@@ -1243,7 +1243,7 @@ RefreshSideTabs = function()
   end
   profileTabs:SetSize(width, #names * (height + PLATE_GAP) - PLATE_GAP)
   profileTabs:ClearAllPoints()
-  profileTabs:SetPoint("TOPLEFT", frame, "TOPRIGHT", 4, -6)
+  profileTabs:SetPoint("LEFT", frame, "RIGHT", 4, 0)
   local strata = frame.GetFrameStrata and frame:GetFrameStrata() or "MEDIUM"
   profileTabs:SetFrameStrata(strata)
   local level = frame.GetFrameLevel and frame:GetFrameLevel() or 1
