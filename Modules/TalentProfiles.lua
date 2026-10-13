@@ -456,7 +456,7 @@ end
 
 -- spec and configID are optional. The menu and slash command leave them nil
 -- (active spec, active config). Side tabs pass the tree on screen.
--- replaceStaged undoes pending changes before purchasing.
+-- replaceStaged undoes pending changes, then stages the saved build.
 -- skipClear is the follow-up call after the talent window's own undo button.
 local function ApplyBuild(name, spec, configID, replaceStaged, skipClear)
   if InCombatLockdown and InCombatLockdown() then
@@ -564,7 +564,7 @@ local function OnSlash(rest)
     return
   end
   if cmd == "apply" then
-    ApplyBuild(arg)
+    ApplyBuild(arg, nil, nil, true)
     return
   end
   if cmd == "delete" then
@@ -1343,7 +1343,7 @@ local function BuildOptions(_, parent)
     parent:SetHeight(40)
     return
   end
-  note:SetText("Builds for this character and spec. They also show as tabs on the right of the talent window. Apply places points but does not commit them: review, then click Apply Changes.")
+  note:SetText("Builds for this character and spec. They also show as tabs on the right of the talent window. Apply undoes pending changes, then stages that build. Review and click Apply Changes.")
   y = y - 40
 
   local box = MakeEditBox(parent, 200)
@@ -1374,7 +1374,7 @@ local function BuildOptions(_, parent)
     row.delete = MakeButton(row, "Delete", 60)
     row.delete:SetPoint("LEFT", row.rename, "RIGHT", 4, 0)
     row.apply:SetScript("OnClick", function()
-      ApplyBuild(row.name)
+      ApplyBuild(row.name, nil, nil, true)
     end)
     row.rename:SetScript("OnClick", function()
       local new = PlainString(box:GetText())
@@ -1439,7 +1439,7 @@ end
 FTK:RegisterModule({
   id = MODULE_ID,
   name = "Talent Profiles",
-  description = "Save talent builds by name per character and spec. Each saved build is a brass nameplate on the right of the talent window, labeled with the tree it spends the most points in. Apply stages the points; you review and click Apply Changes. Needs a trainer reset if your committed points don't match.",
+  description = "Save talent builds by name per character and spec. Each saved build is a brass nameplate on the right of the talent window, labeled with the tree it spends the most points in. Apply undoes pending changes, then stages the points; you review and click Apply Changes. Needs a trainer reset if your committed points don't match.",
   defaultEnabled = true,
   BuildOptions = BuildOptions,
   onEnable = function()
