@@ -8,9 +8,10 @@
   has points the saved build does not, Apply places nothing and asks for a
   trainer reset.
 
-  Saved builds for the spec on screen also show as tabs on the right of the
-  talent window: spec icon, with the saved name drawn on it. Click a tab to
-  stage that build. Click it again to clear the preview.
+  Saved builds for the spec on screen also show as square tabs on the right
+  of the talent window. Each tab is colored for the talent tree that build
+  spends the most points in, and shows the saved name plus that tree's name.
+  Click a tab to undo pending changes, then stage that build.
 ]]
 
 local FTK = ForeverForge
@@ -806,7 +807,8 @@ ClearPending = function(configID, treeIDs, resume)
   return false
 end
 
--- Tree header icons. Frame art wins, because that is the icon beside the tree name.
+-- English fallback when GetTalentTabInfo does not return a name. Order is
+-- the classic talent-tree order, left to right.
 local TREE_NAMES = {
   DRUID = { "Balance", "Feral Combat", "Restoration" },
   HUNTER = { "Beast Mastery", "Marksmanship", "Survival" },
@@ -819,53 +821,14 @@ local TREE_NAMES = {
   WARRIOR = { "Arms", "Fury", "Protection" },
 }
 
-local TREE_ICONS = {
-  DRUID = {
-    "Interface\\Icons\\Spell_Nature_StarFall",
-    "Interface\\Icons\\Ability_Racial_BearForm",
-    "Interface\\Icons\\Spell_Nature_HealingTouch",
-  },
-  HUNTER = {
-    "Interface\\Icons\\Ability_Hunter_BeastTaming",
-    "Interface\\Icons\\Ability_Marksmanship",
-    "Interface\\Icons\\Ability_Hunter_SwiftStrike",
-  },
-  MAGE = {
-    "Interface\\Icons\\Spell_Holy_MagicalSentry",
-    "Interface\\Icons\\Spell_Fire_FireBolt02",
-    "Interface\\Icons\\Spell_Frost_FrostBolt02",
-  },
-  PALADIN = {
-    "Interface\\Icons\\Spell_Holy_HolyBolt",
-    "Interface\\Icons\\Spell_Holy_DevotionAura",
-    "Interface\\Icons\\Spell_Holy_AuraOfLight",
-  },
-  PRIEST = {
-    "Interface\\Icons\\Spell_Holy_PowerWordShield",
-    "Interface\\Icons\\Spell_Holy_Heal",
-    "Interface\\Icons\\Spell_Shadow_ShadowWordPain",
-  },
-  ROGUE = {
-    "Interface\\Icons\\Ability_Rogue_Eviscerate",
-    "Interface\\Icons\\Ability_BackStab",
-    "Interface\\Icons\\Ability_Stealth",
-  },
-  SHAMAN = {
-    "Interface\\Icons\\Spell_Nature_Lightning",
-    "Interface\\Icons\\Spell_Nature_LightningShield",
-    "Interface\\Icons\\Spell_Nature_MagicImmunity",
-  },
-  WARLOCK = {
-    "Interface\\Icons\\Spell_Shadow_DeathCoil",
-    "Interface\\Icons\\Spell_Shadow_Metamorphosis",
-    "Interface\\Icons\\Spell_Shadow_RainOfFire",
-  },
-  WARRIOR = {
-    "Interface\\Icons\\Ability_Warrior_SavageBlow",
-    "Interface\\Icons\\Ability_Warrior_InnerRage",
-    "Interface\\Icons\\Ability_Warrior_DefensiveStance",
-  },
+-- One fill per tree slot. This client does not hand tree icons to addons,
+-- and spell-icon paths paint as black. Left, middle, right.
+local TREE_COLORS = {
+  { 0.40, 0.18, 0.64 },
+  { 0.70, 0.32, 0.08 },
+  { 0.10, 0.42, 0.24 },
 }
+local NEUTRAL_COLOR = { 0.26, 0.22, 0.18 }
 
 local function ClassToken()
   if not UnitClass then
@@ -875,163 +838,28 @@ local function ClassToken()
   return ok and PlainString(token) or nil
 end
 
-local function UsableTexture(value)
-  if IsSecret(value) then
+local function TreeName(index)
+  if not index then
     return nil
   end
-  if type(value) == "number" and value > 0 then
-    return value
-  end
-  if type(value) == "string" and value ~= "" and value ~= "0" then
-    return value
-  end
-  return nil
-end
-
-local function TabInfo(index)
-  if type(GetTalentTabInfo) ~= "function" then
-    return nil, nil
-  end
-  local name, icon
-  pcall(function()
-    local a, b, _, d = GetTalentTabInfo(index)
-    if type(a) == "string" and not IsSecret(a) then
-      name = a
-      icon = UsableTexture(b)
-    elseif type(b) == "string" and not IsSecret(b) then
-      name = b
-      icon = UsableTexture(d)
-    end
-  end)
-  return name, icon
-end
-
-local function TextureNearLabel(fs)
-  local best, bestScore
-  local function consider(region)
-    if type(region) ~= "table" or not region.GetObjectType then
-      return
-    end
-    local objType
+  if type(GetTalentTabInfo) == "function" then
+    local name
     pcall(function()
-      objType = region:GetObjectType()
-    end)
-    if objType ~= "Texture" then
-      return
-    end
-    local tex, w, h
-    pcall(function()
-      tex = region:GetTexture()
-      w = region:GetWidth()
-      h = region:GetHeight()
-    end)
-    tex = UsableTexture(tex)
-    w = PlainNumber(w)
-    h = PlainNumber(h)
-    if not tex or not w or not h or w < 16 or h < 16 or w > 72 or h > 72 then
-      return
-    end
-    local score = math.abs(w - h)
-    if not bestScore or score < bestScore then
-      bestScore = score
-      best = tex
-    end
-  end
-  local parent = fs.GetParent and fs:GetParent()
-  local depth = 0
-  while type(parent) == "table" and depth < 3 do
-    if parent.GetRegions then
-      local regions
-      pcall(function()
-        regions = { parent:GetRegions() }
-      end)
-      if regions then
-        local i
-        for i = 1, #regions do
-          consider(regions[i])
-        end
+      local a, b = GetTalentTabInfo(index)
+      if type(a) == "string" and a ~= "" and not IsSecret(a) then
+        name = a
+      elseif type(b) == "string" and b ~= "" and not IsSecret(b) then
+        name = b
       end
-    end
-    parent = parent.GetParent and parent:GetParent()
-    depth = depth + 1
-  end
-  return best
-end
-
-local function IconsByTreeName(root)
-  local found = {}
-  if type(root) ~= "table" then
-    return found
-  end
-  local function walk(frame, depth)
-    if type(frame) ~= "table" or depth > 8 or not frame.GetRegions then
-      return
-    end
-    local regions
-    pcall(function()
-      regions = { frame:GetRegions() }
     end)
-    if regions then
-      local i
-      for i = 1, #regions do
-        local region = regions[i]
-        if type(region) == "table" and region.GetObjectType and region.GetText then
-          local objType, text
-          pcall(function()
-            objType = region:GetObjectType()
-            text = region:GetText()
-          end)
-          text = objType == "FontString" and PlainString(text) or nil
-          if text and not found[text] then
-            local tex = TextureNearLabel(region)
-            if tex then
-              found[text] = tex
-            end
-          end
-        end
-      end
-    end
-    if frame.GetChildren then
-      local children
-      pcall(function()
-        children = { frame:GetChildren() }
-      end)
-      if children then
-        local i
-        for i = 1, #children do
-          walk(children[i], depth + 1)
-        end
-      end
+    name = PlainString(name)
+    if name then
+      return name
     end
   end
-  walk(root, 0)
-  return found
-end
-
-local function TreeVisuals(treeIDs, root)
   local token = ClassToken()
-  local names = token and TREE_NAMES[token] or nil
-  local icons = token and TREE_ICONS[token] or nil
-  local live = IconsByTreeName(root)
-  local trees = {}
-  local count = treeIDs and #treeIDs or 0
-  if names and #names > count then
-    count = #names
-  end
-  local i
-  for i = 1, count do
-    local apiName, apiIcon = TabInfo(i)
-    local name = apiName or (names and names[i]) or nil
-    local icon = apiIcon
-    if name and live[name] then
-      icon = live[name]
-    end
-    if not icon and icons then
-      icon = icons[i]
-    end
-    trees[i] = { name = name, icon = icon }
-  end
-  return trees
+  local names = token and TREE_NAMES[token]
+  return names and names[index] or nil
 end
 
 local function DominantTreeIndex(saved, configID, treeIDs)
@@ -1077,17 +905,20 @@ local function DominantTreeIndex(saved, configID, treeIDs)
   return bestIdx
 end
 
-local function ProfileIcon(saved, configID, treeIDs, root)
+local function ProfileStyle(saved, configID, treeIDs)
   local idx = DominantTreeIndex(saved, configID, treeIDs)
-  if not idx then
-    return "Interface\\Icons\\INV_Misc_QuestionMark"
+  local color = (idx and TREE_COLORS[idx]) or NEUTRAL_COLOR
+  return color, TreeName(idx)
+end
+
+local function PaintFill(tex, color, selected)
+  local r, g, b = color[1], color[2], color[3]
+  if selected then
+    r = math.min(1, r + 0.12)
+    g = math.min(1, g + 0.08)
+    b = math.min(1, b + 0.06)
   end
-  local trees = TreeVisuals(treeIDs, root)
-  local icon = trees[idx] and trees[idx].icon
-  if icon then
-    return icon
-  end
-  return "Interface\\Icons\\INV_Misc_QuestionMark"
+  Solid(tex, r, g, b, 1)
 end
 
 local function PaintBorder(btn, selected)
@@ -1131,27 +962,25 @@ local function EnsureTabButton(index)
   btn:SetSize(72, 72)
   btn:RegisterForClicks("LeftButtonUp")
   btn:EnableMouse(true)
-  btn.bg = btn:CreateTexture(nil, "BACKGROUND")
-  btn.bg:SetAllPoints()
-  Solid(btn.bg, 0.04, 0.04, 0.04, 0.92)
-  btn.icon = btn:CreateTexture(nil, "ARTWORK")
-  btn.icon:SetSize(66, 66)
-  btn.icon:SetPoint("CENTER", 0, 0)
-  btn.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-  btn.shade = btn:CreateTexture(nil, "OVERLAY")
-  btn.shade:SetPoint("BOTTOMLEFT", 3, 3)
-  btn.shade:SetPoint("BOTTOMRIGHT", -3, 3)
-  btn.shade:SetHeight(15)
-  Solid(btn.shade, 0, 0, 0, 0.78)
-  btn.label = btn:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-  pcall(btn.label.SetDrawLayer, btn.label, "OVERLAY", 7)
-  btn.label:SetPoint("BOTTOM", 0, 4)
-  btn.label:SetJustifyH("CENTER")
-  btn.label:SetWordWrap(false)
-  local font = btn.label:GetFont()
-  if font then
-    btn.label:SetFont(font, 9, "OUTLINE")
+  btn.fill = btn:CreateTexture(nil, "BACKGROUND")
+  btn.fill:SetPoint("TOPLEFT", 2, -2)
+  btn.fill:SetPoint("BOTTOMRIGHT", -2, 2)
+  Solid(btn.fill, NEUTRAL_COLOR[1], NEUTRAL_COLOR[2], NEUTRAL_COLOR[3], 1)
+  local function Label(size, y)
+    local fs = btn:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    pcall(fs.SetDrawLayer, fs, "OVERLAY", 7)
+    fs:SetPoint("CENTER", 0, y)
+    fs:SetJustifyH("CENTER")
+    fs:SetWordWrap(false)
+    local font = fs:GetFont()
+    if font then
+      fs:SetFont(font, size, "OUTLINE")
+    end
+    return fs
   end
+  btn.nameText = Label(11, 7)
+  btn.treeText = Label(9, -8)
+  btn.treeText:SetTextColor(1, 0.93, 0.78)
   local function Edge()
     local tex = btn:CreateTexture(nil, "OVERLAY")
     return tex
@@ -1183,6 +1012,9 @@ local function EnsureTabButton(index)
     GameTooltip:SetText(FTK.Plain(self.profileName), 1, 0.82, 0)
     local build = self.profileSpec and Builds(self.profileSpec)
     local points = build and build[self.profileName] and build[self.profileName].points
+    if self.treeName then
+      GameTooltip:AddLine(self.treeName, 0.85, 0.8, 0.65)
+    end
     if points then
       GameTooltip:AddLine(tostring(points) .. " points", 0.8, 0.8, 0.8)
     end
@@ -1301,20 +1133,50 @@ RefreshSideTabs = function()
       btn.profileName = name
       btn.profileSpec = spec
       btn:SetSize(width, height)
-      btn.icon:SetSize(width - 6, width - 6)
-      btn.label:SetWidth(width - 8)
-      btn.label:SetText(FTK.Plain(name))
+      btn.nameText:SetWidth(width - 10)
+      btn.treeText:SetWidth(width - 10)
+      btn.nameText:SetText(FTK.Plain(name))
       local saved = Builds(spec)
       local build = saved and saved[name]
-      btn.icon:SetTexture(ProfileIcon(build and build.nodes, resolvedID, treeIDs, frame))
+      local color, treeName = ProfileStyle(build and build.nodes, resolvedID, treeIDs)
+      btn.treeName = treeName
       local selected = viewedName == name and viewedSpec == spec
-      btn.icon:SetAlpha(selected and 1 or 0.82)
+      PaintFill(btn.fill, color, selected)
+      if treeName then
+        btn.treeText:SetText(treeName)
+        btn.treeText:Show()
+        btn.nameText:ClearAllPoints()
+        btn.nameText:SetPoint("CENTER", 0, 7)
+      else
+        btn.treeText:Hide()
+        btn.nameText:ClearAllPoints()
+        btn.nameText:SetPoint("CENTER", 0, 0)
+      end
       PaintBorder(btn, selected)
       btn:ClearAllPoints()
       btn:SetPoint("TOPLEFT", profileTabs, "TOPLEFT", 0, -((i - 1) * (height + 4)))
       btn:Show()
     elseif tabButtons[i] then
       tabButtons[i]:Hide()
+    end
+  end
+  local children
+  pcall(function()
+    children = { profileTabs:GetChildren() }
+  end)
+  if children then
+    local keep = {}
+    for i = 1, #tabButtons do
+      if tabButtons[i] then
+        keep[tabButtons[i]] = true
+      end
+    end
+    local childIndex
+    for childIndex = 1, #children do
+      local child = children[childIndex]
+      if child and not keep[child] and child.Hide then
+        child:Hide()
+      end
     end
   end
   profileTabs:SetSize(width, #names * (height + 4) - 4)
@@ -1515,7 +1377,7 @@ end
 FTK:RegisterModule({
   id = MODULE_ID,
   name = "Talent Profiles",
-  description = "Save talent builds by name per character and spec. Each saved build is a spec-icon tab on the right of the talent window. Apply stages the points; you review and click Apply Changes. Needs a trainer reset if your committed points don't match.",
+  description = "Save talent builds by name per character and spec. Each saved build is a colored tab on the right of the talent window, labeled with the tree it spends the most points in. Apply stages the points; you review and click Apply Changes. Needs a trainer reset if your committed points don't match.",
   defaultEnabled = true,
   BuildOptions = BuildOptions,
   onEnable = function()
