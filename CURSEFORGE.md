@@ -106,4 +106,8 @@ Source: https://github.com/crumpshot-forever/ForeverForge · License: MIT
 
 ## Support
 
-Forever Forge is free, including every future update. If you've enjoyed this addon, please leave a donation and tell your friends. https://ko-fi.com/crumpshot
+Forever Forge is free, including every future update. If you've enjoyed this addon, please leave a donation and tell your friends.
+
+[![Support on Ko-fi](https://crumpshot-forever.github.io/ForeverForge/images/donate.png)](https://ko-fi.com/crumpshot)
+
+https://ko-fi.com/crumpshot
