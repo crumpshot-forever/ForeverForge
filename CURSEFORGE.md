@@ -1,125 +1,107 @@
 # Forever Forge
 
-Forever Forge is one addon with a set of light-weight tools for WoW: Forever. Each tool has its own on/off switch. Turning one off leaves the others alone. Your settings are remembered.
+One menu of light-weight tools for WoW: Forever. Every tool has its own switch. Turn one off and the rest keep working. Your choices are remembered. Your bags, bank, loot window, party frames, and tooltips stay the ones you already use. Forever Forge only adds the help on top.
 
-The tools sit on the normal bags, bank, loot window, party frames, and tooltips. They do not replace those screens.
+![The Forever Forge menu, with a switch for each tool](https://crumpshot-forever.github.io/ForeverForge/images/menu.png)
 
-Open the menu with the minimap button, or type `/ff`, `/forge`, or `/foreverforge`.
+## Opening the menu
 
-Install the folder named `ForeverForge`. Do not rename that folder. The menu title is Forever Forge, and chat lines start with `Forever Forge:`.
+Open it from the anvil on your minimap, or type `/ff`, `/forge`, or `/foreverforge`.
 
-Chat lines from these tools stay in your own chat window. They are not sent to say, party, or guild chat.
+To hide the anvil, untick **Minimap icon** in the menu header or type `/ff minimap`. Type it again to bring the anvil back. `/ff` always opens the menu, even with the icon hidden. `/ff reset` moves the button back to its default spot.
 
 ## Clean Bags
 
-Clean Bags sorts the combined backpack into labeled sections. Each label includes a count, such as Quest Items (12).
+![Combined backpack sorted into labeled sections](https://crumpshot-forever.github.io/ForeverForge/images/clean-bags.png)
 
-The order is:
-
-1. Quest Items
-2. Consumables, for food, potions, elixirs, scrolls, and other items the game already calls consumable
-3. Reagents
-4. Crafting
-5. One section for each saved equipment set, named Equipment Set: and the set name
-6. Gear, for weapons and armor that are not already in a saved set
-7. General
-8. Junk, for poor-quality items, after General
-9. Empty
-
-The layout appears when you open the backpack. The item buttons stay the normal ones. Section labels are only as wide as the title, and never more than half the row.
-
-Clean Bags runs when the combined backpack is on. Turning the tool off puts the normal combined grid back.
+Open your backpack and it is already sorted. Quest items, food and potions, reagents, crafting materials, saved equipment sets, gear, everyday items, junk, and empty slots each get their own labeled group, with a count on the label.
 
 ## Clean Bank
 
-Clean Bank uses the same sections, in the same order, on the bank window that is open. It has its own switch. It does not change the backpack.
+![Bank sorted into the same labeled sections](https://crumpshot-forever.github.io/ForeverForge/images/clean-bank.png)
 
-Category labels stay short and do not take clicks, so the bank search box stays usable.
+Your bank uses that same order, on its own switch. The bank search box stays right where you expect it.
 
 ## Quick Swap
 
-While the bank is open, each Clean Bags and Clean Bank section gets the Forever Forge button to the left of its name.
+![The Forever Forge button on a Crafting section](https://crumpshot-forever.github.io/ForeverForge/images/quick-swap.png)
 
-- On a bag section, the button moves that section into the bank.
-- On a bank section, the button moves that section into your bags.
-
-Empty slots have no button. Closing the bank hides the buttons and stops a move that is still running. Items move one at a time.
-
-The hearthstone is never sent to the bank. It stays in your bags.
-
-Quick Swap needs Clean Bags or Clean Bank turned on, because the button lives on those section labels.
+While the bank is open, every filled group in your bags and in the bank gets the Forever Forge button. One click sends that whole group the other way. Your hearthstone stays in your bags.
 
 ## Auto-sell junk
 
-When you open a merchant, Auto-sell junk sells poor-quality grey items one at a time.
+Open a vendor and the grey junk sells itself. Quest items stay with you. Anything a merchant will not buy stays with you. Walk away from the shop and the selling stops.
 
-Quest items are kept. Items with no sell price are kept. Closing the merchant window stops the selling. Turning the tool off stops it as well.
+## Repair All
+
+Open a repair merchant and your gear is repaired in one step. Optional guild bank funds live under Configure. Vendors that cannot repair are left alone.
 
 ## Turbo Loot
 
-Turbo Loot takes every item on a corpse at once when auto-loot should run, instead of one click per item.
-
-- If auto-loot is on, opening loot takes the corpse. Hold the auto-loot key and that corpse stays a normal window.
-- If auto-loot is off, the window stays manual. Hold the auto-loot key and that corpse is taken immediately.
-
-A second corpse opened a moment too soon is taken as soon as the game will accept it. Bind-on-pickup questions are left for you to answer. Turbo Loot does not change your auto-loot setting.
+Loot the whole corpse in one go. When auto-loot is on, opening a body takes everything. Hold your auto-loot key if you want that corpse to stay a normal window. When auto-loot is off, loot stays manual until you hold the key. Bind-on-pickup questions still wait for your answer.
 
 ## ID Tooltips
 
-ID Tooltips adds a short line to the tooltip under your cursor.
+![A buff tooltip showing its spell ID](https://crumpshot-forever.github.io/ForeverForge/images/id-tooltips.png)
 
-- Spells show a spell ID.
-- Items show an item ID.
-- NPCs show an NPC ID.
-- Quests show a quest ID.
-- Buffs and debuffs show the spell ID in the aura tooltip.
-
-A quest item in your bags or bank can also show the quest name, such as `Quest: Echeyakee` or `Quest: Consumed by Hatred`, when that item belongs to a quest in your log. Usable quest items and items the quest asks you to collect are both covered. Chat links and merchant items that are not tied to a quest stay unchanged. A hidden ID or title is skipped. Turning ID Tooltips off removes these lines.
+Hover anything and see its ID. Spells, items, creatures, quests, buffs, and debuffs each show theirs. Quest items in your bags or bank can also name the quest they belong to. Item tooltips can show the vendor sell price for one and for a full stack. Toggle that under ID Tooltips → Configure.
 
 ## SpellMaxer
 
-SpellMaxer looks at your own action bars. If a button is using a lower rank than the best rank your character can cast, you get one local line:
+![SpellMaxer chat line about a lower rank of Healing Touch](https://crumpshot-forever.github.io/ForeverForge/images/spellmaxer.png)
 
-`Hey, <name>, you aren't Spellmaxing to the MAX! You're using a lower level of <spell>! Check yoself!`
+A weaker rank left on your bars is easy to miss. SpellMaxer checks your own action bars and tells you, in your chat window:
 
-It checks when you log in or reload, when you enter an area, and when your group changes. It checks your bars only. It does not judge other players' classes.
+`Hey, [name], you aren't Spellmaxing to the MAX! You're using a lower level of [spell]! Check yoself!`
+
+It looks again when you log in, when you enter a new area, and when your group changes.
 
 ## Enemy Player Alert
 
-When an enemy player comes into nameplate range, you hear a short sound and get one local line:
+An enemy player steps into nameplate range, you hear a short sound, and your chat window names them:
 
-`Forever Forge: Crump Crump <Guild Name> - 20 human mage detected!`
+`Forever Forge: [name] [Guild] - 20 human mage detected!`
 
-The guild name is included in angle brackets when the game provides it. If there is no guild, or the name is hidden, the brackets are left off.
-
-The same character is not announced again for 1 minute. Every enemy in range can be listed. There is no cap.
-
-Enemy nameplates must already be turned on in the game. Forever Forge does not change that setting, and it does not detect players farther out than those nameplates.
+The guild is shown when you can see it. The same person stays quiet for one minute. Enemy nameplates must be turned on in the game.
 
 ## Click Heal
 
-Click Heal is for a Priest, Druid, Paladin, or Shaman. Other classes get one local note and no extra clicks.
+For a Priest, Druid, Paladin, or Shaman: modified clicks on party and raid frames cast your heals, cleanses, and resurrection. They keep working in combat.
 
-Modified clicks on party and raid frames cast your heals, cleanses, and resurrection. The spells are attached before combat, so they keep working in a fight. A member who joins during combat is picked up when combat ends.
+Your own portrait stays a normal portrait, so you can still leave the party. A plain left click still targets, and a plain right click still opens the player menu, until you decide otherwise. Open Configure to see or change what each click casts. Type `none` and press Enter to clear a click.
 
-Your own character frame is not covered. Right-click there still opens the normal menu, including leaving the party.
+## Mail Expire Alert
 
-By default, left click still targets and right click still opens the unit menu. The settings page can turn those into heals. Target and focus frames are off unless you turn that on.
+When you close the mailbox, Forever Forge remembers the soonest expiry for that character. On login, chat tells you if any recorded alt has mail expiring within the warn window (default 3 days, configurable).
 
-Open Configure on Click Heal to see the spell each click will cast. The name on the right of a row is the current spell. To change it, type the spell you want into the box and press Enter. Leave the box empty to keep the spell on the right. Type `none` and press Enter to turn that click off. Alt-Right is available and starts unused.
+## NPC Gossip Skip
 
-The same binding list appears on the party or raid frame tooltip.
+Single non-quest gossip options are skipped for you, and flight masters open the flight map. Hold Shift when you want the normal talk window.
 
-## What stays normal
+## Auto Quest
 
-- Bags, the bank, and party frames stay the normal windows.
-- Public chat is never used.
-- Bind-on-pickup prompts are never clicked for you.
-- Friendly health is not drawn on a separate bar. Click Heal uses the frames already on screen.
-- The install folder for this build is `ForeverForge`.
+Quests accept and turn in for you. Hold Shift to handle them yourself. Gold-cost quests and turn-ins with more than one reward stay yours to choose.
 
-Source and changelog: https://github.com/crumpshot-forever/ForeverForge
+## Quick Accept
 
-License: MIT
+Five opt-in switches, all off by default: Accept Summon, Accept Res, auto-accept party invites, Decline Duels, and BG Auto-Release. Turn on only what you want.
+
+## Talent Profiles
+
+![Saved talent builds as brass plates beside the talent window](https://crumpshot-forever.github.io/ForeverForge/images/talent-profiles.jpg)
+
+Save talent builds by name for each character and spec. Click a build's brass plate beside the talent window, or use `/ff talents`, to stage the points. Nothing is committed until you review them and press **Apply Changes**. If the points you've already spent don't match the build, you'll see "Reset at trainer first" and nothing is placed.
+
+## What's new
+
+See the release notes for every version on [GitHub Releases](https://github.com/crumpshot-forever/ForeverForge/releases).
+
+## Install
+
+Install the folder named `ForeverForge` and leave that name as it is. The menu title is Forever Forge. Messages from the tools appear only in your own chat window and start with `Forever Forge:`.
+
+Source: https://github.com/crumpshot-forever/ForeverForge · License: MIT
+
+## Support
 
 Forever Forge is free, including every future update. If you've enjoyed this addon, please leave a donation and tell your friends. https://ko-fi.com/crumpshot
