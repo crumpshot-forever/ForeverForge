@@ -2,7 +2,7 @@
 
 One menu of light-weight tools for WoW: Forever. Each tool has its own on/off switch. The normal bags, bank, loot window, party frames, and tooltips stay in place.
 
-Current version: **1.4.0**.
+Latest release and notes: [GitHub Releases](https://github.com/crumpshot-forever/ForeverForge/releases).
 
 Open the menu with the minimap button, or type `/ff`, `/forge`, or `/foreverforge`.
 
@@ -10,7 +10,7 @@ Open the menu with the minimap button, or type `/ff`, `/forge`, or `/foreverforg
 
 1. Download this repository and keep the folder named `ForeverForge`.
 2. Put `ForeverForge` in `Interface\AddOns`.
-3. Restart the game. The menu should show `v1.4.0`.
+3. Restart the game. Forever Forge appears in the menu and on the minimap.
 
 Do not rename the folder. The game only loads it when the folder name matches `ForeverForge.toc`.
 
@@ -52,6 +52,5 @@ Forever Forge is free, including every future update. If you've enjoyed this add
 
 ## Sprint / UAT (Grok Build)
 
-- Live board: https://crumpshot-forever.github.io/ForeverForge/board.html
 - Git work-orders (assignment bus): [`work-orders/`](work-orders/) — start at [`ACTIVE.md`](work-orders/ACTIVE.md)
 - Build manual: [`docs/grok-build.md`](docs/grok-build.md)
