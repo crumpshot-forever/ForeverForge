@@ -1,3 +1,5 @@
+![Forever Forge](https://crumpshot-forever.github.io/ForeverForge/images/logo.jpg)
+
 # Forever Forge
 
 One menu of light-weight tools for WoW: Forever. Every tool has its own switch. Turn one off and the rest keep working. Your choices are remembered. Your bags, bank, loot window, party frames, and tooltips stay the ones you already use. Forever Forge only adds the help on top.
