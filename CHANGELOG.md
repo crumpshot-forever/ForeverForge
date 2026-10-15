@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.2
+
+- **Auto-sell junk.** No longer crashes when a merchant opens with an item whose link is empty. That item is skipped, and grey junk still sells.
+
 ## 1.5.1
 
 - **Talent Profiles.** Apply in the feature config, and `/ff talents apply`, undo pending changes and then stage that build. Same path as the plates on the talent window. Still does not commit.

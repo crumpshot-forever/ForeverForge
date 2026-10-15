@@ -47,7 +47,7 @@ _G.ForeverForge = FTK
 -- from the git tag. This fallback is the menu version on a raw checkout.
 -- Publish a version by committing it and tagging vX.Y.Z on GitHub.
 -- Do not rename the live ForeverForge folder.
-FTK.VERSION = "1.5.1"
+FTK.VERSION = "1.5.2"
 FTK.modules = {}
 FTK.moduleOrder = {}
 FTK.slashHandlers = {}
