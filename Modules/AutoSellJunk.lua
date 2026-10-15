@@ -36,6 +36,13 @@ local function PlainNumber(value)
   return value
 end
 
+local function PlainString(value)
+  if type(value) ~= "string" or value == "" or IsSecret(value) then
+    return nil
+  end
+  return value
+end
+
 local function MerchantOpen()
   if not MerchantFrame or not MerchantFrame.IsShown then
     return false
