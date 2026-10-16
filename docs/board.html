@@ -293,13 +293,12 @@
 
   <div class="wrap">
     <p class="note">
-      Source of record also lives in <code>personal-os/sprint-board.md</code>.
-      Issues with <code>lane:ideation</code>, <code>lane:approved</code>, <code>lane:uat</code>, <code>lane:released</code>, or <code>lane:tabled</code> drive this view.
+      Cards come from GitHub Issues labeled <code>lane:ideation</code>, <code>lane:approved</code>, <code>lane:uat</code>, <code>lane:parked</code>, <code>lane:released</code>, or <code>lane:tabled</code>. Ideas and small fixes without an issue are listed directly. Plain-text copy: <a href="https://github.com/crumpshot-forever/ForeverForge/blob/main/work-orders/SPRINT.md"><code>work-orders/SPRINT.md</code></a>.
     </p>
 
     <section class="packages" aria-labelledby="pkg-heading">
       <h2 id="pkg-heading">Delivery packages</h2>
-      <p class="pkg-note">Non-monolithic UAT queue — each package ships as its own PR.</p>
+      <p class="pkg-note">Each package ships as its own PR. Parked packages are built but need a rebase onto current main before UAT.</p>
       <div style="overflow-x:auto">
         <table class="pkg-table">
           <thead>
@@ -313,39 +312,51 @@
           <tbody>
             <tr>
               <td class="pkg-id">A</td>
-              <td>Vendor Stop</td>
-              <td><span class="badge">UAT</span></td>
+              <td>Vendor Stop — Repair All, Vendor Price</td>
+              <td><span class="badge">Released</span></td>
               <td><a href="https://github.com/crumpshot-forever/ForeverForge/pull/13">#13</a></td>
             </tr>
             <tr>
               <td class="pkg-id">B</td>
               <td>Quiet Errors</td>
-              <td><span class="badge">UAT</span></td>
+              <td><span class="badge">Parked</span></td>
               <td><a href="https://github.com/crumpshot-forever/ForeverForge/pull/14">#14</a></td>
             </tr>
             <tr>
               <td class="pkg-id">C</td>
-              <td>Mail Kit</td>
-              <td><span class="badge">UAT</span></td>
+              <td>Mail Kit — Mail Expire Alert (Rapid Mail dropped)</td>
+              <td><span class="badge">Released</span></td>
               <td><a href="https://github.com/crumpshot-forever/ForeverForge/pull/15">#15</a></td>
             </tr>
             <tr>
               <td class="pkg-id">D</td>
-              <td>NPC Flow</td>
-              <td><span class="badge">UAT</span></td>
+              <td>NPC Flow — NPC Gossip Skip, Auto Quest</td>
+              <td><span class="badge">Released</span></td>
               <td><a href="https://github.com/crumpshot-forever/ForeverForge/pull/16">#16</a></td>
             </tr>
             <tr>
               <td class="pkg-id">E</td>
-              <td>Social</td>
-              <td><span class="badge">UAT</span></td>
+              <td>Quick Accept</td>
+              <td><span class="badge">Released</span></td>
               <td><a href="https://github.com/crumpshot-forever/ForeverForge/pull/17">#17</a></td>
             </tr>
             <tr>
               <td class="pkg-id">F</td>
               <td>Durability Warning</td>
-              <td><span class="badge">UAT</span></td>
+              <td><span class="badge">Parked</span></td>
               <td><a href="https://github.com/crumpshot-forever/ForeverForge/pull/18">#18</a></td>
+            </tr>
+            <tr>
+              <td class="pkg-id">G</td>
+              <td>Chat Kit</td>
+              <td><span class="badge">Parked</span></td>
+              <td><a href="https://github.com/crumpshot-forever/ForeverForge/pull/22">#22</a></td>
+            </tr>
+            <tr>
+              <td class="pkg-id">—</td>
+              <td>Talent Profiles + minimap icon toggle</td>
+              <td><span class="badge">Released</span></td>
+              <td><a href="https://github.com/crumpshot-forever/ForeverForge/pull/32">#32</a>, <a href="https://github.com/crumpshot-forever/ForeverForge/pull/34">#34</a></td>
             </tr>
           </tbody>
         </table>
@@ -382,6 +393,7 @@
         { key: "ideation", label: "Ideation" },
         { key: "approved", label: "Approved" },
         { key: "uat", label: "UAT" },
+        { key: "parked", label: "Parked" },
         { key: "released", label: "Released" },
         { key: "tabled", label: "Tabled" }
       ];
@@ -389,6 +401,23 @@
       var API =
         "https://api.github.com/repos/crumpshot-forever/ForeverForge/issues?state=all&per_page=100";
       var SNAPSHOT = "board-data.json";
+
+      // Cards with no GitHub issue behind them (ideas, small fixes, tabled notes).
+      var EXTRA = [
+        { lane: "released", title: "Talent Apply fix — config Apply and /ff talents apply stage the saved build (v1.5.1)" },
+        { lane: "released", title: "Auto-sell junk crash fix — empty item link no longer errors (v1.5.2)" },
+        { lane: "released", title: "/tm fix — target marks no longer blocked as Forever Forge (v1.5.3)" },
+        { lane: "tabled", title: "Chat Timestamps — Forever has an in-game option" },
+        { lane: "ideation", tag: "S1", title: "Bag Space Warning — chat or sound when free bag slots run low" },
+        { lane: "ideation", tag: "S2", title: "Quest Item Tooltip — \u201cQuest: X (3/8)\u201d from your own quest log" },
+        { lane: "ideation", tag: "S3", title: "Rested XP Readout — rested amount on XP bar hover and at login" },
+        { lane: "ideation", tag: "S4", title: "Hearth Info — hearthstone tooltip shows bind location and time left" },
+        { lane: "ideation", tag: "S5", title: "Supply Low Warn — chat when food, water or bandages run low" },
+        { lane: "ideation", tag: "S6", title: "Block Guild Invites — auto-decline guild invites and petitions" },
+        { lane: "ideation", tag: "S7", title: "Solo BoP Confirm — auto-confirm bind-on-pickup loot when not grouped" },
+        { lane: "ideation", tag: "S8", title: "Sound Mute Lite — curated mute list of annoying sound IDs" },
+        { lane: "ideation", tag: "S9", title: "Ding Shot — automatic screenshot on level-up" }
+      ];
 
       var boardEl = document.getElementById("board");
       var statusEl = document.getElementById("board-status");
@@ -436,6 +465,14 @@
             byLane[lane].push(issue);
           }
         });
+        EXTRA.forEach(function (x, i) {
+          byLane[x.lane].push({
+            number: 1000 + i,
+            tag: x.tag || "",
+            title: x.title,
+            html_url: null
+          });
+        });
 
         boardEl.innerHTML = "";
         LANES.forEach(function (l) {
@@ -468,14 +505,16 @@
                 return a.number - b.number;
               })
               .forEach(function (issue) {
-                var a = document.createElement("a");
+                var a = document.createElement(issue.html_url ? "a" : "div");
                 a.className = "card";
-                a.href = issue.html_url;
-                a.target = "_blank";
-                a.rel = "noopener noreferrer";
+                if (issue.html_url) {
+                  a.href = issue.html_url;
+                  a.target = "_blank";
+                  a.rel = "noopener noreferrer";
+                }
                 a.innerHTML =
-                  '<span class="num">#' +
-                  issue.number +
+                  '<span class="num">' +
+                  (issue.html_url ? "#" + issue.number : issue.tag || "\u2022") +
                   '</span><span class="title"></span>';
                 a.querySelector(".title").textContent = issue.title;
                 list.appendChild(a);
