@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.3
+
+- **/tm target marks.** Typing `/tm 8` no longer shows the "blocked from an action only available to the Blizzard UI" popup or a chat line naming Forever Forge. `/ff`, `/forge`, and `/foreverforge` still open the menu.
+
 ## 1.5.2
 
 - **Auto-sell junk.** No longer crashes when a merchant opens with an item whose link is empty. That item is skipped, and grey junk still sells.
