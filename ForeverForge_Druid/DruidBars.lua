@@ -1,12 +1,8 @@
 --[[
-  Druid Bars. Draws the resources the current form is not using, directly
-  under the player power bar.
-
-  Mana stays readable in Cat and Bear, so that bar is shown whenever it is
-  not already the main bar. Energy and Rage are shown only when this client
-  is tracking that pool: a real amount, a pool seen earlier this session, or
-  a secret value the status bar can display. A plain 0 outside that form is
-  not a pool, and that bar stays hidden.
+  Druid Bars. A mana bar under the player power bar while in Cat or Bear.
+  Caster form and Moonkin already show mana as the main bar, so this stays
+  hidden there. Energy and Rage are not drawn. This client does not keep
+  those pools readable outside their own form.
 ]]
 
 local M = {}
@@ -32,18 +28,6 @@ local FORM_SPELL = {
   [33943] = "travel",
   [40120] = "travel",
   [33891] = "travel",
-}
-
-local POWER_LABEL = {
-  Energy = "Energy",
-  Rage = "Rage",
-  Mana = "Mana",
-}
-
-local POWER_COLOR = {
-  Energy = { 1, 1, 0 },
-  Rage = { 1, 0, 0 },
-  Mana = { 0, 0.4, 1 },
 }
 
 local function IsSecret(value)
@@ -76,40 +60,18 @@ function M.PowerId(name)
   return FALLBACK_POWER[name]
 end
 
-function M.ShouldShow(power, active, sample, seen)
-  if active == nil or power == nil or power == active or type(sample) ~= "table" then
+function M.ShowMana(form, sample, powerType)
+  local feral = form == "cat" or form == "bear"
+  if not feral and form == nil then
+    feral = powerType == M.PowerId("Energy") or powerType == M.PowerId("Rage")
+  end
+  if not feral or type(sample) ~= "table" then
     return false
   end
   if sample.curSecret or sample.maxSecret then
     return true
   end
-  if type(sample.max) ~= "number" or sample.max <= 0 then
-    return false
-  end
-  if power == M.PowerId("Mana") then
-    return true
-  end
-  if type(sample.cur) == "number" and sample.cur > 0 then
-    return true
-  end
-  return type(seen) == "table" and seen[power] == true
-end
-
-function M.VisiblePowers(active, samples, seen)
-  local order = { "Energy", "Rage", "Mana" }
-  local list = {}
-  if active == nil or type(samples) ~= "table" then
-    return list
-  end
-  local index
-  for index = 1, #order do
-    local name = order[index]
-    local power = M.PowerId(name)
-    if M.ShouldShow(power, active, samples[power], seen) then
-      list[#list + 1] = name
-    end
-  end
-  return list
+  return type(sample.max) == "number" and sample.max > 0
 end
 
 local function SpellName(spellID)
@@ -160,19 +122,6 @@ local function FormFromSpell(spellID)
   return nil
 end
 
-function M.PowerForForm(form)
-  if form == "cat" then
-    return M.PowerId("Energy")
-  end
-  if form == "bear" then
-    return M.PowerId("Rage")
-  end
-  if form == "caster" or form == "moonkin" or form == "travel" then
-    return M.PowerId("Mana")
-  end
-  return nil
-end
-
 local function ReadForm()
   if type(GetNumShapeshiftForms) ~= "function" or type(GetShapeshiftFormInfo) ~= "function" then
     return nil
@@ -202,11 +151,7 @@ local function ReadForm()
   return nil
 end
 
-local function ActivePower()
-  local fromForm = M.PowerForForm(ReadForm())
-  if fromForm ~= nil then
-    return fromForm
-  end
+local function ReadPowerType()
   if type(UnitPowerType) ~= "function" then
     return nil
   end
@@ -217,7 +162,8 @@ local function ActivePower()
   return PlainNumber(power)
 end
 
-local function ReadSample(power)
+local function ReadMana()
+  local power = M.PowerId("Mana")
   if type(UnitPower) ~= "function" or type(UnitPowerMax) ~= "function" then
     return nil
   end
@@ -247,17 +193,6 @@ local function ReadSample(power)
   return sample
 end
 
-local function ReadSamples()
-  local samples = {}
-  local names = { "Energy", "Rage", "Mana" }
-  local index
-  for index = 1, #names do
-    local power = M.PowerId(names[index])
-    samples[power] = ReadSample(power)
-  end
-  return samples
-end
-
 local function PageConfig()
   local host = _G.ForeverForge
   if not host or type(host.GetPageConfig) ~= "function" then
@@ -274,10 +209,8 @@ function M.BarsEnabled()
   return cfg.showBars ~= false
 end
 
-local bars = {}
-local seen = {}
+local bar
 local driver
-local anchorBar
 
 local function BarVisible(frame)
   if type(frame) ~= "table" or type(frame.IsVisible) ~= "function" then
@@ -310,22 +243,22 @@ local function FindPowerBar()
   local index
   local first
   for index = 1, #candidates do
-    local bar = candidates[index]
-    if bar then
+    local candidate = candidates[index]
+    if candidate then
       if not first then
-        first = bar
+        first = candidate
       end
-      if BarVisible(bar) then
-        return bar
+      if BarVisible(candidate) then
+        return candidate
       end
     end
   end
   return first
 end
 
-local function BarColor(name)
+local function ManaColor()
   local colors = _G.PowerBarColor
-  local named = colors and (colors[name:upper()] or colors[name])
+  local named = colors and (colors.MANA or colors.Mana)
   if type(named) == "table" then
     local red = PlainNumber(named.r)
     local green = PlainNumber(named.g)
@@ -334,95 +267,67 @@ local function BarColor(name)
       return red, green, blue
     end
   end
-  local color = POWER_COLOR[name] or { 1, 1, 1 }
-  return color[1], color[2], color[3]
+  return 0, 0.4, 1
 end
 
-local function ApplySample(bar, name, sample)
-  local power = M.PowerId(name)
-  bar.label = POWER_LABEL[name] or name
+local function Paint(sample)
+  bar.label = "Mana"
   bar.plainCur = sample.curSecret and nil or sample.cur
   bar.plainMax = sample.maxSecret and nil or sample.max
-  if type(bar.plainCur) == "number" and bar.plainCur > 0 then
-    seen[power] = true
-  end
-  local red, green, blue = BarColor(name)
-  local painted = pcall(function()
+  local red, green, blue = ManaColor()
+  return pcall(function()
     bar:SetStatusBarColor(red, green, blue, 1)
     bar:SetMinMaxValues(0, sample.maxRaw)
     bar:SetValue(sample.curRaw)
   end)
-  return painted
 end
 
-local function PlaceBar(bar, relative, gap)
+local function Place(anchor)
   bar:ClearAllPoints()
-  bar:SetPoint("TOPLEFT", relative, "BOTTOMLEFT", 0, gap)
-  bar:SetPoint("TOPRIGHT", relative, "BOTTOMRIGHT", 0, gap)
+  bar:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, BAR_GAP)
+  bar:SetPoint("TOPRIGHT", anchor, "BOTTOMRIGHT", 0, BAR_GAP)
   bar:SetHeight(BAR_H)
 end
 
-local function HideBars()
-  local index
-  for index = 1, #bars do
-    bars[index]:Hide()
-  end
-end
-
 function M.Refresh()
-  if not driver then
+  if not bar then
     return
   end
   if not M.BarsEnabled() then
-    HideBars()
+    bar:Hide()
     return
   end
-  anchorBar = FindPowerBar()
-  if not BarVisible(anchorBar) then
-    HideBars()
+  local anchor = FindPowerBar()
+  local sample = ReadMana()
+  if not BarVisible(anchor) or not M.ShowMana(ReadForm(), sample, ReadPowerType()) or not Paint(sample) then
+    bar:Hide()
     return
   end
-  local active = ActivePower()
-  local samples = ReadSamples()
-  local names = M.VisiblePowers(active, samples, seen)
-  local previous = anchorBar
-  local index
-  for index = 1, #bars do
-    local bar = bars[index]
-    local name = names[index]
-    local power = name and M.PowerId(name)
-    local sample = power and samples[power]
-    if name and sample and ApplySample(bar, name, sample) then
-      if bar:GetParent() ~= anchorBar then
-        bar:SetParent(anchorBar)
-      end
-      local strataOk, strata = pcall(anchorBar.GetFrameStrata, anchorBar)
-      if strataOk and type(strata) == "string" and not IsSecret(strata) then
-        bar:SetFrameStrata(strata)
-      end
-      local levelOk, level = pcall(anchorBar.GetFrameLevel, anchorBar)
-      level = levelOk and PlainNumber(level) or nil
-      if level then
-        bar:SetFrameLevel(level + 2)
-      end
-      PlaceBar(bar, previous, BAR_GAP)
-      bar:Show()
-      previous = bar
-    else
-      bar:Hide()
-    end
+  if bar:GetParent() ~= anchor then
+    bar:SetParent(anchor)
   end
+  local strataOk, strata = pcall(anchor.GetFrameStrata, anchor)
+  if strataOk and type(strata) == "string" and not IsSecret(strata) then
+    bar:SetFrameStrata(strata)
+  end
+  local levelOk, level = pcall(anchor.GetFrameLevel, anchor)
+  level = levelOk and PlainNumber(level) or nil
+  if level then
+    bar:SetFrameLevel(level + 2)
+  end
+  Place(anchor)
+  bar:Show()
 end
 
-local function ShowTooltip(bar)
+local function ShowTooltip(self)
   local tip = _G.GameTooltip
   if not tip or type(tip.SetOwner) ~= "function" then
     return
   end
-  tip:SetOwner(bar, "ANCHOR_RIGHT")
-  tip:SetText(bar.label or "Resource")
-  if type(bar.plainCur) == "number" and type(bar.plainMax) == "number" and type(tip.AddLine) == "function" then
-    tip:AddLine(bar.plainCur .. " / " .. bar.plainMax, 1, 1, 1)
+  tip:SetOwner(self, "ANCHOR_RIGHT")
+  tip:SetText("Mana")
+  if type(self.plainCur) == "number" and type(self.plainMax) == "number" and type(tip.AddLine) == "function" then
+    tip:AddLine(self.plainCur .. " / " .. self.plainMax, 1, 1, 1)
   end
   tip:Show()
 end
@@ -434,8 +339,11 @@ local function HideTooltip()
   end
 end
 
-local function MakeBar(index)
-  local bar = CreateFrame("StatusBar", "ForeverForgeDruidBar" .. index, UIParent)
+function M.Start()
+  if bar or type(CreateFrame) ~= "function" then
+    return
+  end
+  bar = CreateFrame("StatusBar", "ForeverForgeDruidBar1", UIParent)
   bar:SetHeight(BAR_H)
   bar:Hide()
   bar:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
@@ -447,16 +355,8 @@ local function MakeBar(index)
   end
   bar:SetScript("OnEnter", ShowTooltip)
   bar:SetScript("OnLeave", HideTooltip)
-  return bar
-end
 
-function M.Start()
-  if driver or type(CreateFrame) ~= "function" then
-    return
-  end
   driver = CreateFrame("Frame")
-  bars[1] = MakeBar(1)
-  bars[2] = MakeBar(2)
   local elapsed = 0
   driver:SetScript("OnUpdate", function(_, delta)
     elapsed = elapsed + (PlainNumber(delta) or 0)
@@ -494,10 +394,10 @@ function M.BuildOptions(_, parent)
   note:SetWidth(420)
   note:SetJustifyH("LEFT")
   note:SetWordWrap(true)
-  note:SetText("Druid Bars sit under your power bar. Cat and Bear show Mana. Energy and Rage show for the forms you are not in when the game is tracking those pools. A yellow bar is Energy, a red bar is Rage, and a blue bar is Mana.")
+  note:SetText("Shows your Mana under the power bar while you are in Cat Form or Bear Form.")
   local box = CreateFrame("CheckButton", nil, parent)
   box:SetSize(24, 24)
-  box:SetPoint("TOPLEFT", 0, -78)
+  box:SetPoint("TOPLEFT", 0, -36)
   box:SetNormalTexture("Interface\\Buttons\\UI-CheckBox-Up")
   box:SetPushedTexture("Interface\\Buttons\\UI-CheckBox-Down")
   box:SetCheckedTexture("Interface\\Buttons\\UI-CheckBox-Check")
@@ -509,5 +409,5 @@ function M.BuildOptions(_, parent)
   local text = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
   text:SetPoint("LEFT", box, "RIGHT", 4, 0)
   text:SetText("Druid Bars")
-  parent:SetHeight(120)
+  parent:SetHeight(80)
 end

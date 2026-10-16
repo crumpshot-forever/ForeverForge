@@ -51,7 +51,7 @@ local function Start()
     id = PAGE_ID,
     title = "Druid",
     order = 100,
-    description = "Resource bars for your other forms.",
+    description = "Mana bar in Cat and Bear.",
     builder = BuildPage,
   })
   local bars = _G.ForeverForgeDruid
