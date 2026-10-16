@@ -27,6 +27,21 @@
       end,
     })
 
+  A companion addon (a class pack) adds a page, not a tool. Call this at
+  load, after checking that ForeverForge exists:
+
+    ForeverForge:RegisterPage({
+      id = "Druid",
+      title = "Druid",
+      order = 100, -- pages are listed after the tools, lowest order first
+      description = "Druid tools.",
+      builder = function(page, parent)
+        -- Same parent as BuildOptions. Settings live on the table from
+        -- GetPageConfig. Mutate that table; do not replace it.
+        local cfg = ForeverForge:GetPageConfig(page.id)
+      end,
+    })
+
   Features must not require each other or FlowRider.
   Before reading combat, auras, health, or power, read
   ../FlowRider/docs/Forever-API-visibility.md. Secret values must not be
@@ -50,6 +65,8 @@ _G.ForeverForge = FTK
 FTK.VERSION = "1.5.3"
 FTK.modules = {}
 FTK.moduleOrder = {}
+FTK.pages = {}
+FTK.pageOrder = {}
 FTK.slashHandlers = {}
 
 local function Trim(s)
@@ -87,6 +104,9 @@ function FTK:InitDB()
   if type(db.modules) ~= "table" then
     db.modules = {}
   end
+  if type(db.pages) ~= "table" then
+    db.pages = {}
+  end
   _G.ForeverForgeDB = db
   self.db = db
   self._dbReady = true
@@ -106,7 +126,7 @@ function FTK:RegisterModule(def)
     self:Print("Module id must use letters, numbers, and underscores: " .. id)
     return nil
   end
-  if self.modules[id] then
+  if self.modules[id] or self.pages[id] then
     self:Print("Duplicate module id: " .. id)
     return nil
   end
@@ -121,6 +141,68 @@ function FTK:RegisterModule(def)
   self.modules[id] = def
   self.moduleOrder[#self.moduleOrder + 1] = id
   return def
+end
+
+function FTK:RegisterPage(def)
+  if type(def) ~= "table" then
+    self:Print("RegisterPage needs a page table")
+    return nil
+  end
+  local id = Trim(def.id)
+  if id == "" then
+    self:Print("RegisterPage needs an id")
+    return nil
+  end
+  if not id:find("^[%a_][%w_]*$") then
+    self:Print("Page id must use letters, numbers, and underscores: " .. id)
+    return nil
+  end
+  if self.modules[id] or self.pages[id] then
+    self:Print("Page id already in use: " .. id)
+    return nil
+  end
+  local title = def.title
+  if type(title) ~= "string" or title == "" then
+    self:Print("RegisterPage needs a title: " .. id)
+    return nil
+  end
+  if type(def.builder) ~= "function" then
+    self:Print("RegisterPage needs a builder: " .. id)
+    return nil
+  end
+  local order = def.order
+  if type(order) ~= "number" or order ~= order then
+    order = 0
+  end
+  local description = def.description
+  if type(description) ~= "string" then
+    description = ""
+  end
+  local page = {
+    id = id,
+    name = title,
+    title = title,
+    description = description,
+    order = order,
+    BuildOptions = def.builder,
+  }
+  self.pages[id] = page
+  self.pageOrder[#self.pageOrder + 1] = id
+  table.sort(self.pageOrder, function(a, b)
+    local left = self.pages[a]
+    local right = self.pages[b]
+    if left.order ~= right.order then
+      return left.order < right.order
+    end
+    if left.name ~= right.name then
+      return left.name < right.name
+    end
+    return a < b
+  end)
+  if type(self.OnPagesChanged) == "function" then
+    self:OnPagesChanged()
+  end
+  return page
 end
 
 function FTK:GetModule(id)
@@ -146,6 +228,19 @@ end
 
 function FTK:GetConfig(id)
   return self:GetModuleRecord(id).config
+end
+
+function FTK:GetPageConfig(id)
+  if type(id) ~= "string" or self.pages[id] == nil then
+    return nil
+  end
+  self:InitDB()
+  local cfg = self.db.pages[id]
+  if type(cfg) ~= "table" then
+    cfg = {}
+    self.db.pages[id] = cfg
+  end
+  return cfg
 end
 
 function FTK:IsEnabled(id)

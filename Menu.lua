@@ -1,6 +1,7 @@
 --[[
   Main menu. Lists every registered feature with an on/off switch and,
-  when the feature defines one, a Configure button.
+  when the feature defines one, a Configure button. Companion pages are
+  listed after those features and open their own settings.
 ]]
 
 local FTK = ForeverForge
@@ -266,6 +267,13 @@ local function GetRow(index)
     end
   end)
   row:SetScript("OnClick", function(self)
+    if self.pageId then
+      local page = FTK.pages and FTK.pages[self.pageId]
+      if page then
+        Menu.ShowConfig(page)
+      end
+      return
+    end
     local id = self.moduleId
     if not id then
       return
@@ -274,7 +282,15 @@ local function GetRow(index)
     Menu.Refresh()
   end)
   config:SetScript("OnClick", function(self)
-    local id = self:GetParent().moduleId
+    local parent = self:GetParent()
+    if parent.pageId then
+      local page = FTK.pages and FTK.pages[parent.pageId]
+      if page then
+        Menu.ShowConfig(page)
+      end
+      return
+    end
+    local id = parent.moduleId
     local module = id and FTK:GetModule(id)
     if not module then
       return
@@ -301,6 +317,9 @@ function Menu.Refresh(retry)
   end
   local order = FTK.moduleOrder
   local count = #order
+  local pageOrder = FTK.pageOrder or {}
+  local pageCount = #pageOrder
+  local total = count + pageCount
   local y = 0
   local needsMeasure = false
   local i
@@ -309,6 +328,10 @@ function Menu.Refresh(retry)
     local module = FTK.modules[id]
     local row = GetRow(i)
     row.moduleId = id
+    row.pageId = nil
+    row.box:Show()
+    row.name:ClearAllPoints()
+    row.name:SetPoint("TOPLEFT", row.box, "TOPRIGHT", 6, -2)
     row.name:SetText(FTK.Plain(module.name))
     local description = module.description or ""
     if module._error then
@@ -351,13 +374,44 @@ function Menu.Refresh(retry)
     end
     row:Show()
   end
-  for i = count + 1, #Menu.rows do
+  for i = 1, pageCount do
+    local id = pageOrder[i]
+    local page = FTK.pages[id]
+    local row = GetRow(count + i)
+    row.moduleId = nil
+    row.pageId = id
+    row.box:Hide()
+    row.box:SetChecked(false)
+    row.name:ClearAllPoints()
+    row.name:SetPoint("TOPLEFT", row, "TOPLEFT", 12, -8)
+    row.name:SetText(FTK.Plain(page.name))
+    row.name:SetTextColor(0.95, 0.88, 0.72)
+    row.desc:SetText(FTK.Plain(page.description or ""))
+    row.desc:SetTextColor(0.78, 0.72, 0.62)
+    local nameH, nameOk = TextBlockHeight(row.name, 16)
+    local descH, descOk = TextBlockHeight(row.desc, 12)
+    if not nameOk or not descOk then
+      needsMeasure = true
+    end
+    local rowH = nameH + descH + 16
+    if rowH < 52 then
+      rowH = 52
+    end
+    row:SetHeight(rowH)
+    row:ClearAllPoints()
+    row:SetPoint("TOPLEFT", Menu.content, "TOPLEFT", 0, -y)
+    y = y + rowH + ROW_GAP
+    row.config:Show()
+    row:Show()
+  end
+  for i = total + 1, #Menu.rows do
     Menu.rows[i]:Hide()
     Menu.rows[i].moduleId = nil
+    Menu.rows[i].pageId = nil
   end
 
   local height = 1
-  if count > 0 then
+  if total > 0 then
     height = y - ROW_GAP
   end
   Menu.content:SetHeight(height)
@@ -373,7 +427,7 @@ function Menu.Refresh(retry)
   end
 
   if Menu.empty and Menu.mode ~= "config" then
-    if count == 0 then
+    if total == 0 then
       Menu.empty:Show()
       if Menu.scroll then
         Menu.scroll:Hide()
@@ -387,6 +441,12 @@ function Menu.Refresh(retry)
   end
   if Menu.footer then
     Menu.footer:SetText(FooterText(false))
+  end
+end
+
+function FTK:OnPagesChanged()
+  if Menu.mode ~= "config" then
+    Menu.Refresh()
   end
 end
 
