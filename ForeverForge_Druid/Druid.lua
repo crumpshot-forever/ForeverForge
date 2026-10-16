@@ -26,40 +26,11 @@ local function PlayerClass()
   return classFile
 end
 
-local function PlaceholderToggle(parent, y, cfg)
-  local box = CreateFrame("CheckButton", nil, parent)
-  box:SetSize(24, 24)
-  box:SetPoint("TOPLEFT", 0, y)
-  box:SetNormalTexture("Interface\\Buttons\\UI-CheckBox-Up")
-  box:SetPushedTexture("Interface\\Buttons\\UI-CheckBox-Down")
-  box:SetCheckedTexture("Interface\\Buttons\\UI-CheckBox-Check")
-  box:SetChecked(cfg.placeholder == true)
-  box:SetScript("OnClick", function(self)
-    cfg.placeholder = self:GetChecked() == true
-  end)
-  local text = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-  text:SetPoint("LEFT", box, "RIGHT", 4, 0)
-  text:SetText("Placeholder toggle")
-  return y - 28
-end
-
 local function BuildPage(page, parent)
-  local host = _G.ForeverForge
-  if not host or type(host.GetPageConfig) ~= "function" then
-    return
+  local bars = _G.ForeverForgeDruid
+  if bars and type(bars.BuildOptions) == "function" then
+    bars.BuildOptions(page, parent)
   end
-  local cfg = host:GetPageConfig(page.id)
-  if type(cfg) ~= "table" then
-    return
-  end
-  local note = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-  note:SetPoint("TOPLEFT", 0, -4)
-  note:SetWidth(420)
-  note:SetJustifyH("LEFT")
-  note:SetWordWrap(true)
-  note:SetText("Placeholder. Druid tools will be added here once they are chosen.")
-  PlaceholderToggle(parent, -40, cfg)
-  parent:SetHeight(80)
 end
 
 local started = false
@@ -80,9 +51,13 @@ local function Start()
     id = PAGE_ID,
     title = "Druid",
     order = 100,
-    description = "Druid tools.",
+    description = "Resource bars for your other forms.",
     builder = BuildPage,
   })
+  local bars = _G.ForeverForgeDruid
+  if bars and type(bars.Start) == "function" then
+    bars.Start()
+  end
 end
 
 if type(CreateFrame) ~= "function" then

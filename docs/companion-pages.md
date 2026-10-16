@@ -50,4 +50,4 @@ Check `ForeverForge` before calling `RegisterPage` or `GetPageConfig`. A pack th
 
 ## Druid pack
 
-`ForeverForge_Druid` is the first companion. Its TOC requires Forever Forge. On login it checks the player class and registers the Druid page only for a Druid. Other classes stay on the one-time check. The page is a scaffold with one placeholder toggle.
+`ForeverForge_Druid` is the first companion. Its TOC requires Forever Forge. On login it checks the player class and registers the Druid page only for a Druid. Other classes stay on the one-time check. The page has Druid Bars, which draw the other form resources under the main power bar.

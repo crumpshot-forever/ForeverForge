@@ -13,4 +13,5 @@
 # Replace 000000 and REPLACE_WAGO_ID before the first release of this pack.
 # Keep the same two values in .github/workflows/release.yml (-p and -a).
 
+DruidBars.lua
 Druid.lua
