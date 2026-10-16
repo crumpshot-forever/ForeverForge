@@ -367,6 +367,34 @@ blockWatch:SetScript("OnEvent", function(_, _, ...)
   end
 end)
 
+-- /tm is a Blizzard slash handler that calls protected SetRaidTarget. It waits
+-- in SlashCmdList until the first chat command imports that list. A tainted
+-- entry in the same list is imported with it, and the client then blocks the
+-- mark and names this addon. Own commands go on the hash only.
+local function DispatchSlash(msg)
+  FTK:OnSlash(msg)
+end
+
+local OWN_SLASHES = { "/FF", "/FORGE", "/FOREVERFORGE" }
+
+local function RegisterChatSlashes()
+  local hash = _G.hash_SlashCmdList
+  if type(hash) ~= "table" then
+    return false
+  end
+  local index
+  for index = 1, #OWN_SLASHES do
+    hash[OWN_SLASHES[index]] = DispatchSlash
+  end
+  local info = _G.hash_ChatTypeInfoList
+  if type(info) == "table" then
+    for index = 1, #OWN_SLASHES do
+      info[OWN_SLASHES[index]] = "FOREVERFORGE"
+    end
+  end
+  return true
+end
+
 local events = CreateFrame("Frame")
 events:RegisterEvent("ADDON_LOADED")
 events:RegisterEvent("PLAYER_LOGIN")
@@ -382,6 +410,7 @@ events:SetScript("OnEvent", function(_, event, arg1)
     end
     return
   end
+  RegisterChatSlashes()
   FTK:InitDB()
   if FTK.InitMinimap then
     FTK:InitMinimap()
@@ -395,7 +424,4 @@ end)
 _G.SLASH_FOREVERFORGE1 = "/ff"
 _G.SLASH_FOREVERFORGE2 = "/forge"
 _G.SLASH_FOREVERFORGE3 = "/foreverforge"
-_G.SlashCmdList = _G.SlashCmdList or {}
-_G.SlashCmdList.FOREVERFORGE = function(msg)
-  FTK:OnSlash(msg)
-end
+RegisterChatSlashes()
