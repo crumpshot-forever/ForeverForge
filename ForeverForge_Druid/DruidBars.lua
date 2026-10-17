@@ -1,14 +1,15 @@
 --[[
   Druid Bars. A mana bar under the player power bar while in Cat or Bear.
   Caster form and Moonkin already show mana as the main bar, so this stays
-  hidden there. Energy and Rage are not drawn. This client does not keep
-  those pools readable outside their own form.
+  hidden there. It also stays hidden when current mana is below the cost of
+  Cat Form. Energy and Rage are not drawn.
 ]]
 
 local M = {}
 _G.ForeverForgeDruid = M
 
 local PAGE_ID = "Druid"
+local CAT_FORM_SPELL = 768
 local BAR_H = 6
 local BAR_GAP = -1
 
@@ -60,7 +61,7 @@ function M.PowerId(name)
   return FALLBACK_POWER[name]
 end
 
-function M.ShowMana(form, sample, powerType)
+function M.ShowMana(form, sample, powerType, catCost)
   local feral = form == "cat" or form == "bear"
   if not feral and form == nil then
     feral = powerType == M.PowerId("Energy") or powerType == M.PowerId("Rage")
@@ -68,10 +69,80 @@ function M.ShowMana(form, sample, powerType)
   if not feral or type(sample) ~= "table" then
     return false
   end
+  local current = sample.curSecret and nil or sample.cur
+  if type(current) == "number" and type(catCost) == "number" and catCost > 0 and current < catCost then
+    return false
+  end
   if sample.curSecret or sample.maxSecret then
     return true
   end
   return type(sample.max) == "number" and sample.max > 0
+end
+
+local function EntryManaCost(info)
+  if type(info) ~= "table" or IsSecret(info) then
+    return nil
+  end
+  local isMana = PlainNumber(info.type) == M.PowerId("Mana")
+  if not isMana then
+    local name = info.name
+    if type(name) == "string" and not IsSecret(name) and name:upper() == "MANA" then
+      isMana = true
+    end
+  end
+  if not isMana then
+    return nil
+  end
+  local minCost = PlainNumber(info.minCost)
+  if minCost and minCost > 0 then
+    return minCost
+  end
+  local cost = PlainNumber(info.cost)
+  if cost and cost > 0 then
+    return cost
+  end
+  return nil
+end
+
+local function CatFormManaCost()
+  local costs
+  local spells = _G.C_Spell
+  if spells and type(spells.GetSpellPowerCost) == "function" then
+    local ok, result = pcall(spells.GetSpellPowerCost, CAT_FORM_SPELL)
+    if ok then
+      costs = result
+    end
+  end
+  if costs == nil and type(GetSpellPowerCost) == "function" then
+    local ok, result = pcall(GetSpellPowerCost, CAT_FORM_SPELL)
+    if ok then
+      costs = result
+    end
+  end
+  if type(costs) ~= "table" or IsSecret(costs) then
+    return nil
+  end
+  if type(issecrettable) == "function" then
+    local secretOk, secret = pcall(issecrettable, costs)
+    if secretOk and secret == true then
+      return nil
+    end
+  end
+  local index
+  local countOk, count = pcall(function()
+    return #costs
+  end)
+  count = countOk and PlainNumber(count) or nil
+  if count and count > 0 then
+    for index = 1, count do
+      local amount = EntryManaCost(costs[index])
+      if amount then
+        return amount
+      end
+    end
+    return nil
+  end
+  return EntryManaCost(costs)
 end
 
 local function SpellName(spellID)
@@ -299,7 +370,7 @@ function M.Refresh()
   end
   local anchor = FindPowerBar()
   local sample = ReadMana()
-  if not BarVisible(anchor) or not M.ShowMana(ReadForm(), sample, ReadPowerType()) or not Paint(sample) then
+  if not BarVisible(anchor) or not M.ShowMana(ReadForm(), sample, ReadPowerType(), CatFormManaCost()) or not Paint(sample) then
     bar:Hide()
     return
   end
@@ -394,10 +465,10 @@ function M.BuildOptions(_, parent)
   note:SetWidth(420)
   note:SetJustifyH("LEFT")
   note:SetWordWrap(true)
-  note:SetText("Shows your Mana under the power bar while you are in Cat Form or Bear Form.")
+  note:SetText("Shows your Mana under the power bar in Cat Form or Bear Form, while you still have enough mana to cast Cat Form.")
   local box = CreateFrame("CheckButton", nil, parent)
   box:SetSize(24, 24)
-  box:SetPoint("TOPLEFT", 0, -36)
+  box:SetPoint("TOPLEFT", 0, -48)
   box:SetNormalTexture("Interface\\Buttons\\UI-CheckBox-Up")
   box:SetPushedTexture("Interface\\Buttons\\UI-CheckBox-Down")
   box:SetCheckedTexture("Interface\\Buttons\\UI-CheckBox-Check")
@@ -409,5 +480,5 @@ function M.BuildOptions(_, parent)
   local text = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
   text:SetPoint("LEFT", box, "RIGHT", 4, 0)
   text:SetText("Druid Bars")
-  parent:SetHeight(80)
+  parent:SetHeight(90)
 end
