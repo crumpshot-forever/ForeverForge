@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.6.1
+
+- **Cat Bar.** No longer shows an "Unknown macro option: combopoints" message. Combo points still show in Cat Form.
+
 ## 1.6.0
 
 - **Druid tools.** Forever Forge now includes tools for Druids, with a Druid page in the menu. Other classes load them and nothing happens. There is no separate addon to install.
