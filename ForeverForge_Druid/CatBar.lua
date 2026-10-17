@@ -19,6 +19,7 @@ local ENERGY_H = 12
 local COMBO_H = 9
 local MANA_H = 14
 local PAD = 3
+local BARS_TOP = PAD + AURA_H + 2
 
 local function IsSecret(value)
   if value == nil or type(issecretvalue) ~= "function" then
@@ -199,6 +200,9 @@ local function CreateAuraRow(parent)
   container:SetPoint("TOPLEFT", parent, "TOPLEFT", PAD, -PAD)
   if container.EnableMouse then
     container:EnableMouse(false)
+  end
+  if container.SetBackdrop then
+    pcall(container.SetBackdrop, container, nil)
   end
   if container.SetUnit then
     pcall(container.SetUnit, container, "target")
@@ -464,7 +468,7 @@ function Cat.Refresh()
     RefreshAuras(auras)
     aurasReady = true
   end
-  local y = PAD + AURA_H + 2
+  local y = BARS_TOP
   PlaceRow(energyBar, y, ENERGY_H)
   PaintPower(energyBar, "Energy", 3, { 1, 0.82, 0.15 })
   y = y + ENERGY_H + 2
@@ -543,7 +547,8 @@ function Cat.Start()
     SavePosition()
   end)
   local bg = frame:CreateTexture(nil, "BACKGROUND")
-  bg:SetAllPoints()
+  bg:SetPoint("TOPLEFT", frame, "TOPLEFT", 0, -BARS_TOP)
+  bg:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", 0, 0)
   if bg.SetColorTexture then
     bg:SetColorTexture(0.04, 0.03, 0.02, 0.88)
   end
