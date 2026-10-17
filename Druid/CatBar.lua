@@ -242,43 +242,6 @@ local comboSlots = {}
 local manaBar
 local aurasReady = false
 
-local function MacroCombo()
-  if type(SecureCmdOptionParse) ~= "function" then
-    return nil
-  end
-  local function yes(points)
-    local ok, result = pcall(SecureCmdOptionParse, "[combopoints:" .. points .. "]yes;no")
-    result = ok and PlainString(result) or nil
-    if result == "yes" then
-      return true
-    end
-    if result == "no" then
-      return false
-    end
-    return nil
-  end
-  if yes(9) == true or yes(6) == true then
-    return nil
-  end
-  local points
-  for points = 5, 1, -1 do
-    local hit = yes(points)
-    if hit == true then
-      if points == 5 or yes(points + 1) == false then
-        return points
-      end
-      return nil
-    end
-    if hit == nil then
-      return nil
-    end
-  end
-  if yes(1) == false then
-    return 0
-  end
-  return nil
-end
-
 local function WidgetShown(widget)
   if type(widget) ~= "table" or type(widget.IsShown) ~= "function" then
     return nil
@@ -348,10 +311,6 @@ local function ComboFromGems()
 end
 
 local function ComboCount()
-  local fromMacro = MacroCombo()
-  if fromMacro ~= nil then
-    return fromMacro
-  end
   local last = _G.ComboFrame and PlainNumber(_G.ComboFrame.lastPoints)
   if last and last >= 0 and last <= 5 then
     return last
