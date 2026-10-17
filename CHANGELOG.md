@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.6.0
+
+- **Druid tools.** Forever Forge now includes tools for Druids, with a Druid page in the menu. Other classes load them and nothing happens. There is no separate addon to install.
+  - **Cat Bar.** A movable panel in Cat Form with the debuffs you cast and their time left, energy and mana with totals on each bar, and five combo points.
+  - **Bear Bar.** A movable panel in Bear Form with the debuffs you cast, a rage total, and mana. A mana strip sits under the player power bar in Bear Form.
+  - Lock position on the Druid page stops either bar from being dragged.
+- **Class pages in the menu.** The menu can list a page after the regular tools. Regular tools look and work the same as before.
+
 ## 1.5.3
 
 - **/tm target marks.** Typing `/tm 8` no longer shows the "blocked from an action only available to the Blizzard UI" popup or a chat line naming Forever Forge. `/ff`, `/forge`, and `/foreverforge` still open the menu.
