@@ -15,9 +15,9 @@ local WIDTH = 214
 local ICON = 28
 local ICON_GAP = 3
 local AURA_H = 46
-local ENERGY_H = 14
+local ENERGY_H = 16
 local COMBO_H = 9
-local MANA_H = 14
+local MANA_H = 16
 local PAD = 3
 local BARS_TOP = PAD + AURA_H + 2
 
@@ -398,15 +398,23 @@ local function PaintPower(bar, powerName, fallback, color)
     bar:SetValue(current)
   end)
   if bar.valueText then
-    local currentNumber = PlainNumber(current)
-    if currentNumber == nil then
-      bar.valueText:SetText("")
-    else
-      local whole = math.floor(currentNumber + 0.5)
-      if whole < 0 then
-        whole = 0
+    local text = bar.valueText
+    if IsSecret(current) then
+      local shown = pcall(text.SetText, text, current)
+      if not shown then
+        text:SetText("")
       end
-      bar.valueText:SetText(tostring(whole))
+    else
+      local currentNumber = PlainNumber(current)
+      if currentNumber == nil then
+        text:SetText("")
+      else
+        local whole = math.floor(currentNumber + 0.5)
+        if whole < 0 then
+          whole = 0
+        end
+        text:SetText(tostring(whole))
+      end
     end
   end
 end
@@ -558,11 +566,19 @@ function Cat.Start()
   energyBar = MakeStatus(frame, "ForeverForgeCatEnergy")
   manaBar = MakeStatus(frame, "ForeverForgeCatMana")
   local function AddCenterValue(bar)
-    local text = bar:CreateFontString(nil, "OVERLAY")
-    text:SetPoint("CENTER", bar, "CENTER", 0, 0)
+    local holder = CreateFrame("Frame", nil, bar)
+    holder:SetAllPoints(bar)
+    holder:EnableMouse(false)
+    local levelOk, level = pcall(bar.GetFrameLevel, bar)
+    level = levelOk and PlainNumber(level) or nil
+    if level then
+      holder:SetFrameLevel(level + 5)
+    end
+    local text = holder:CreateFontString(nil, "OVERLAY")
+    text:SetPoint("CENTER", holder, "CENTER", 0, 0)
     text:SetJustifyH("CENTER")
     text:SetJustifyV("MIDDLE")
-    if not pcall(text.SetFont, text, "Fonts\\FRIZQT__.TTF", 10, "OUTLINE") then
+    if not pcall(text.SetFont, text, "Fonts\\FRIZQT__.TTF", 12, "OUTLINE") then
       pcall(text.SetFontObject, text, "GameFontHighlightSmall")
     end
     text:SetTextColor(1, 1, 1, 1)
