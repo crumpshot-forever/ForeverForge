@@ -1,16 +1,15 @@
 --[[
   Druid Bars. A mana bar under the player power bar while in Cat or Bear.
   Caster form and Moonkin already show mana as the main bar, so this stays
-  hidden there. It also stays hidden when current mana is below the cost of
-  Cat Form. Energy and Rage are not drawn.
+  hidden there. In Cat or Bear it stays up the whole time, with the current
+  mana written on the bar. Energy and Rage are not drawn.
 ]]
 
 local M = {}
 _G.ForeverForgeDruid = M
 
 local PAGE_ID = "Druid"
-local CAT_FORM_SPELL = 768
-local BAR_H = 6
+local BAR_H = 12
 local BAR_GAP = -1
 
 local FALLBACK_POWER = {
@@ -61,88 +60,25 @@ function M.PowerId(name)
   return FALLBACK_POWER[name]
 end
 
-function M.ShowMana(form, sample, powerType, catCost)
-  local feral = form == "cat" or form == "bear"
-  if not feral and form == nil then
-    feral = powerType == M.PowerId("Energy") or powerType == M.PowerId("Rage")
-  end
-  if not feral or type(sample) ~= "table" then
-    return false
-  end
-  local current = sample.curSecret and nil or sample.cur
-  if type(current) == "number" and type(catCost) == "number" and catCost > 0 and current < catCost then
-    return false
-  end
-  if sample.curSecret or sample.maxSecret then
+function M.ShowMana(form, powerType)
+  if form == "cat" or form == "bear" then
     return true
   end
-  return type(sample.max) == "number" and sample.max > 0
+  if form == nil then
+    return powerType == M.PowerId("Energy") or powerType == M.PowerId("Rage")
+  end
+  return false
 end
 
-local function EntryManaCost(info)
-  if type(info) ~= "table" or IsSecret(info) then
-    return nil
+function M.ManaText(current)
+  if type(current) ~= "number" then
+    return ""
   end
-  local isMana = PlainNumber(info.type) == M.PowerId("Mana")
-  if not isMana then
-    local name = info.name
-    if type(name) == "string" and not IsSecret(name) and name:upper() == "MANA" then
-      isMana = true
-    end
+  local whole = math.floor(current + 0.5)
+  if whole < 0 then
+    whole = 0
   end
-  if not isMana then
-    return nil
-  end
-  local minCost = PlainNumber(info.minCost)
-  if minCost and minCost > 0 then
-    return minCost
-  end
-  local cost = PlainNumber(info.cost)
-  if cost and cost > 0 then
-    return cost
-  end
-  return nil
-end
-
-local function CatFormManaCost()
-  local costs
-  local spells = _G.C_Spell
-  if spells and type(spells.GetSpellPowerCost) == "function" then
-    local ok, result = pcall(spells.GetSpellPowerCost, CAT_FORM_SPELL)
-    if ok then
-      costs = result
-    end
-  end
-  if costs == nil and type(GetSpellPowerCost) == "function" then
-    local ok, result = pcall(GetSpellPowerCost, CAT_FORM_SPELL)
-    if ok then
-      costs = result
-    end
-  end
-  if type(costs) ~= "table" or IsSecret(costs) then
-    return nil
-  end
-  if type(issecrettable) == "function" then
-    local secretOk, secret = pcall(issecrettable, costs)
-    if secretOk and secret == true then
-      return nil
-    end
-  end
-  local index
-  local countOk, count = pcall(function()
-    return #costs
-  end)
-  count = countOk and PlainNumber(count) or nil
-  if count and count > 0 then
-    for index = 1, count do
-      local amount = EntryManaCost(costs[index])
-      if amount then
-        return amount
-      end
-    end
-    return nil
-  end
-  return EntryManaCost(costs)
+  return tostring(whole)
 end
 
 local function SpellName(spellID)
@@ -343,14 +279,40 @@ end
 
 local function Paint(sample)
   bar.label = "Mana"
-  bar.plainCur = sample.curSecret and nil or sample.cur
-  bar.plainMax = sample.maxSecret and nil or sample.max
+  bar.plainCur = nil
+  bar.plainMax = nil
   local red, green, blue = ManaColor()
-  return pcall(function()
-    bar:SetStatusBarColor(red, green, blue, 1)
-    bar:SetMinMaxValues(0, sample.maxRaw)
-    bar:SetValue(sample.curRaw)
+  pcall(bar.SetStatusBarColor, bar, red, green, blue, 1)
+  if type(sample) ~= "table" then
+    pcall(bar.SetMinMaxValues, bar, 0, 1)
+    pcall(bar.SetValue, bar, 0)
+    return
+  end
+  if not sample.curSecret then
+    bar.plainCur = sample.cur
+  end
+  if not sample.maxSecret then
+    bar.plainMax = sample.max
+  end
+  local maxValue = sample.maxRaw
+  if not sample.maxSecret and (type(sample.max) ~= "number" or sample.max <= 0) then
+    maxValue = 1
+  end
+  pcall(function()
+    bar:SetMinMaxValues(0, maxValue)
+    bar:SetValue(sample.curRaw or 0)
   end)
+end
+
+local function ApplyText(sample)
+  if not bar.valueText then
+    return
+  end
+  local current
+  if sample and not sample.curSecret then
+    current = sample.cur
+  end
+  bar.valueText:SetText(M.ManaText(current))
 end
 
 local function Place(anchor)
@@ -370,10 +332,12 @@ function M.Refresh()
   end
   local anchor = FindPowerBar()
   local sample = ReadMana()
-  if not BarVisible(anchor) or not M.ShowMana(ReadForm(), sample, ReadPowerType(), CatFormManaCost()) or not Paint(sample) then
+  if not BarVisible(anchor) or not M.ShowMana(ReadForm(), ReadPowerType()) then
     bar:Hide()
     return
   end
+  Paint(sample)
+  ApplyText(sample)
   if bar:GetParent() ~= anchor then
     bar:SetParent(anchor)
   end
@@ -426,6 +390,15 @@ function M.Start()
   end
   bar:SetScript("OnEnter", ShowTooltip)
   bar:SetScript("OnLeave", HideTooltip)
+  local valueText = bar:CreateFontString(nil, "OVERLAY")
+  valueText:SetPoint("CENTER", bar, "CENTER", 0, 0)
+  valueText:SetJustifyH("CENTER")
+  valueText:SetJustifyV("MIDDLE")
+  if not pcall(valueText.SetFont, valueText, "Fonts\\FRIZQT__.TTF", 10, "OUTLINE") then
+    pcall(valueText.SetFontObject, valueText, "GameFontHighlightSmall")
+  end
+  valueText:SetTextColor(1, 1, 1, 1)
+  bar.valueText = valueText
 
   driver = CreateFrame("Frame")
   local elapsed = 0
@@ -465,10 +438,10 @@ function M.BuildOptions(_, parent)
   note:SetWidth(420)
   note:SetJustifyH("LEFT")
   note:SetWordWrap(true)
-  note:SetText("Shows your Mana under the power bar in Cat Form or Bear Form, while you still have enough mana to cast Cat Form.")
+  note:SetText("Shows your Mana under the power bar the whole time you are in Cat Form or Bear Form.")
   local box = CreateFrame("CheckButton", nil, parent)
   box:SetSize(24, 24)
-  box:SetPoint("TOPLEFT", 0, -48)
+  box:SetPoint("TOPLEFT", 0, -36)
   box:SetNormalTexture("Interface\\Buttons\\UI-CheckBox-Up")
   box:SetPushedTexture("Interface\\Buttons\\UI-CheckBox-Down")
   box:SetCheckedTexture("Interface\\Buttons\\UI-CheckBox-Check")
@@ -480,5 +453,5 @@ function M.BuildOptions(_, parent)
   local text = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
   text:SetPoint("LEFT", box, "RIGHT", 4, 0)
   text:SetText("Druid Bars")
-  parent:SetHeight(90)
+  parent:SetHeight(80)
 end

@@ -50,4 +50,4 @@ Check `ForeverForge` before calling `RegisterPage` or `GetPageConfig`. A pack th
 
 ## Druid pack
 
-`ForeverForge_Druid` is the first companion. Its TOC requires Forever Forge. On login it checks the player class and registers the Druid page only for a Druid. Other classes stay on the one-time check. The page has Druid Bars, a mana bar under the power bar in Cat Form and Bear Form. It hides when mana is below the cost of Cat Form.
+`ForeverForge_Druid` is the first companion. Its TOC requires Forever Forge. On login it checks the player class and registers the Druid page only for a Druid. Other classes stay on the one-time check. The page has Druid Bars, a mana bar under the power bar for the whole time you are in Cat Form or Bear Form. The current mana is written on the bar.
