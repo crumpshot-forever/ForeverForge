@@ -15,7 +15,7 @@ local WIDTH = 214
 local ICON = 28
 local ICON_GAP = 3
 local AURA_H = 46
-local ENERGY_H = 12
+local ENERGY_H = 14
 local COMBO_H = 9
 local MANA_H = 14
 local PAD = 3
@@ -557,13 +557,19 @@ function Cat.Start()
 
   energyBar = MakeStatus(frame, "ForeverForgeCatEnergy")
   manaBar = MakeStatus(frame, "ForeverForgeCatMana")
-  local manaText = manaBar:CreateFontString(nil, "OVERLAY")
-  manaText:SetPoint("CENTER", manaBar, "CENTER", 0, 0)
-  if not pcall(manaText.SetFont, manaText, "Fonts\\FRIZQT__.TTF", 10, "OUTLINE") then
-    pcall(manaText.SetFontObject, manaText, "GameFontHighlightSmall")
+  local function AddCenterValue(bar)
+    local text = bar:CreateFontString(nil, "OVERLAY")
+    text:SetPoint("CENTER", bar, "CENTER", 0, 0)
+    text:SetJustifyH("CENTER")
+    text:SetJustifyV("MIDDLE")
+    if not pcall(text.SetFont, text, "Fonts\\FRIZQT__.TTF", 10, "OUTLINE") then
+      pcall(text.SetFontObject, text, "GameFontHighlightSmall")
+    end
+    text:SetTextColor(1, 1, 1, 1)
+    bar.valueText = text
   end
-  manaText:SetTextColor(1, 1, 1, 1)
-  manaBar.valueText = manaText
+  AddCenterValue(energyBar)
+  AddCenterValue(manaBar)
 
   local slot
   for slot = 1, 5 do
