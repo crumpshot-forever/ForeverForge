@@ -331,7 +331,12 @@ function M.Refresh()
     return
   end
   local cat = _G.ForeverForgeDruidCat
+  local bear = _G.ForeverForgeDruidBear
   if cat and type(cat.IsCoveringMana) == "function" and cat.IsCoveringMana() then
+    bar:Hide()
+    return
+  end
+  if bear and type(bear.IsCoveringMana) == "function" and bear.IsCoveringMana() then
     bar:Hide()
     return
   end
@@ -443,7 +448,7 @@ function M.BuildOptions(_, parent)
   note:SetWidth(420)
   note:SetJustifyH("LEFT")
   note:SetWordWrap(true)
-  note:SetText("Shows your Mana under the power bar the whole time you are in Cat Form or Bear Form.")
+  note:SetText("Shows your Mana under the power bar in Cat Form or Bear Form when that form's bar is turned off.")
   local box = CreateFrame("CheckButton", nil, parent)
   box:SetSize(24, 24)
   box:SetPoint("TOPLEFT", 0, -36)
