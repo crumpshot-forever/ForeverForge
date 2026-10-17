@@ -34,7 +34,7 @@ Do not rename the folder. The game only loads it when the folder name matches `F
 
 To hide the minimap button, untick **Minimap icon** in the menu or type `/ff minimap`. `/ff` always opens the menu.
 
-Class tools live in companion addons. A pack adds a page to this menu. The hook is [docs/companion-pages.md](docs/companion-pages.md).
+Druid tools are included. The Druid page, Cat bar, and Bear bar load only for a Druid. The page hook for any later pack is [docs/companion-pages.md](docs/companion-pages.md).
 
 Chat lines from these tools stay in your own chat window and start with `Forever Forge:`.
 

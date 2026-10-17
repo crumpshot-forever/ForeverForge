@@ -35,6 +35,10 @@ local function BuildPage(page, parent)
   if cat and type(cat.BuildOptions) == "function" then
     cat.BuildOptions(page, parent)
   end
+  local bear = _G.ForeverForgeDruidBear
+  if bear and type(bear.BuildOptions) == "function" then
+    bear.BuildOptions(page, parent)
+  end
 end
 
 local started = false
@@ -55,7 +59,7 @@ local function Start()
     id = PAGE_ID,
     title = "Druid",
     order = 100,
-    description = "Mana in Bear. Cat Bar in Cat.",
+    description = "Cat Bar in Cat. Bear Bar in Bear.",
     builder = BuildPage,
   })
   local bars = _G.ForeverForgeDruid
@@ -65,6 +69,10 @@ local function Start()
   local cat = _G.ForeverForgeDruidCat
   if cat and type(cat.Start) == "function" then
     cat.Start()
+  end
+  local bear = _G.ForeverForgeDruidBear
+  if bear and type(bear.Start) == "function" then
+    bear.Start()
   end
 end
 
