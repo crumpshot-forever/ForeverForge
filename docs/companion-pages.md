@@ -47,3 +47,7 @@ ForeverForge:RegisterPage({
 ## If Forever Forge is missing
 
 Check `ForeverForge` before calling `RegisterPage` or `GetPageConfig`. A pack that loads on its own should do nothing and raise no error.
+
+## Druid pack
+
+`ForeverForge_Druid` is the first companion. Its TOC requires Forever Forge. On login it checks the player class and registers the Druid page only for a Druid. Other classes stay on the one-time check. The page has Druid Bars, a mana bar under the power bar in Bear Form, and a movable Cat Bar for Cat Form. The Cat Bar shows debuffs you cast, with the time left drawn by the game, then energy, combo points, and mana.

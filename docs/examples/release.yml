@@ -30,3 +30,18 @@ jobs:
 
       - name: Package and release
         uses: BigWigsMods/packager@v2
+
+      # Druid pack, same tag, its own CurseForge and Wago projects.
+      # Replace both placeholders before the first tag that should publish it.
+      # CurseForge project id: 000000
+      # Wago addon id: REPLACE_WAGO_ID
+      # Keep those two values in ForeverForge_Druid/ForeverForge_Druid.toc as well.
+      # Until they are real, this step fails its upload after Forever Forge
+      # has already packaged. GITHUB_OAUTH is cleared so this run cannot
+      # rewrite the Forever Forge GitHub Release notes.
+      - name: Package and release Druid pack
+        uses: BigWigsMods/packager@v2
+        env:
+          GITHUB_OAUTH: ""
+        with:
+          args: "-m ForeverForge_Druid/.pkgmeta -p 000000 -a REPLACE_WAGO_ID"

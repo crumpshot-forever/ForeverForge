@@ -65,8 +65,16 @@ CurseForge’s GitHub App / tag auto-import can miss tags or stall with no actio
 |------|----------|
 | Package name | `.pkgmeta` → `package-as: ForeverForge` |
 | CF project id | `ForeverForge.toc` → `X-Curse-Project-ID: 1714676` |
-| Ignores | `.pkgmeta` ignores `docs`, `.github`, `Screenshots`, `CURSEFORGE.md` |
+| Ignores | `.pkgmeta` ignores `docs`, `.github`, `Screenshots`, `CURSEFORGE.md`, `ForeverForge_Druid` |
 | Secret name | `CF_API_KEY` (optional `WAGO_API_TOKEN`) |
+
+## Class packs
+
+The same tag also packages `ForeverForge_Druid`. The workflow runs the packager a second time with `-m ForeverForge_Druid/.pkgmeta`. That file ignores the main addon and lifts the Druid folder to its own zip. Both zips take `@project-version@` from the tag.
+
+Before the first tag that should publish the Druid pack, replace both placeholders. They are `000000` (CurseForge) and `REPLACE_WAGO_ID` (Wago), in both `.github/workflows/release.yml` (`-p` and `-a`) and `ForeverForge_Druid/ForeverForge_Druid.toc`. Until those are real project ids, the Druid step fails its upload. The Forever Forge step has already run.
+
+The Druid step does not update the GitHub Release. One tag still has one GitHub Release, owned by the Forever Forge package. The Druid zip goes to its own CurseForge and Wago projects.
 
 ## References
 
