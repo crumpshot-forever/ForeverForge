@@ -94,6 +94,12 @@ Five opt-in switches, all off by default: Accept Summon, Accept Res, auto-accept
 
 Save talent builds by name for each character and spec. Click a build's brass plate beside the talent window, or use `/ff talents`, to stage the points. Nothing is committed until you review them and press **Apply Changes**. If the points you've already spent don't match the build, you'll see "Reset at trainer first" and nothing is placed.
 
+## Druid tools
+
+![Druid Cat Bar and Bear Bar](https://crumpshot-forever.github.io/ForeverForge/images/druid-tools.jpg)
+
+Druids get their own page in the Forever Forge menu, built into the same addon. The Cat Bar and Bear Bar are movable panels that show the debuffs you cast with their time left, your form's resource (energy and combo points in Cat, rage in Bear), and mana. A mana strip sits under the power bar in Bear Form. Lock position keeps a bar from being dragged. Other classes don't see anything.
+
 ## What's new
 
 See the release notes for every version on [GitHub Releases](https://github.com/crumpshot-forever/ForeverForge/releases).
