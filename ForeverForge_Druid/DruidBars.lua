@@ -330,6 +330,11 @@ function M.Refresh()
     bar:Hide()
     return
   end
+  local cat = _G.ForeverForgeDruidCat
+  if cat and type(cat.IsCoveringMana) == "function" and cat.IsCoveringMana() then
+    bar:Hide()
+    return
+  end
   local anchor = FindPowerBar()
   local sample = ReadMana()
   if not BarVisible(anchor) or not M.ShowMana(ReadForm(), ReadPowerType()) then
