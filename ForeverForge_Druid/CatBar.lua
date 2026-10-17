@@ -64,6 +64,11 @@ function Cat.Enabled()
   return cfg.catBarOn ~= false
 end
 
+function Cat.Locked()
+  local cfg = PageConfig()
+  return type(cfg) == "table" and cfg.catBarLocked == true
+end
+
 local function PowerId(name, fallback)
   local enum = _G.Enum and _G.Enum.PowerType
   local value = enum and enum[name]
@@ -520,12 +525,15 @@ function Cat.Start()
   frame:EnableMouse(true)
   frame:RegisterForDrag("LeftButton")
   frame:SetScript("OnDragStart", function(self)
-    local locked = false
+    if Cat.Locked() then
+      return
+    end
+    local inCombat = false
     if type(InCombatLockdown) == "function" then
       local ok, value = pcall(InCombatLockdown)
-      locked = ok and value == true
+      inCombat = ok and value == true
     end
-    if locked then
+    if inCombat then
       return
     end
     self:StartMoving()
@@ -559,6 +567,7 @@ function Cat.Start()
   end
 
   RestorePosition()
+  Cat.ApplyLock()
 
   local driver = CreateFrame("Frame")
   local elapsed = 0
@@ -609,7 +618,7 @@ function Cat.BuildOptions(_, parent)
   note:SetWidth(420)
   note:SetJustifyH("LEFT")
   note:SetWordWrap(true)
-  note:SetText("Cat Bar is a movable panel for Cat Form. Debuffs you cast sit on top, with the time left drawn by the game, then energy, combo points, and mana. Drag the panel to move it.")
+  note:SetText("Cat Bar is a panel for Cat Form. Debuffs you cast sit on top, with the time left drawn by the game, then energy, combo points, and mana. Drag it to move it, then lock it so it stays put.")
   local box = CreateFrame("CheckButton", nil, parent)
   box:SetSize(24, 24)
   box:SetPoint("TOPLEFT", 0, y - 48)
@@ -628,5 +637,31 @@ function Cat.BuildOptions(_, parent)
   local text = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
   text:SetPoint("LEFT", box, "RIGHT", 4, 0)
   text:SetText("Cat Bar")
-  parent:SetHeight(-y + 80)
+  local lock = CreateFrame("CheckButton", nil, parent)
+  lock:SetSize(24, 24)
+  lock:SetPoint("TOPLEFT", 0, y - 76)
+  lock:SetNormalTexture("Interface\\Buttons\\UI-CheckBox-Up")
+  lock:SetPushedTexture("Interface\\Buttons\\UI-CheckBox-Down")
+  lock:SetCheckedTexture("Interface\\Buttons\\UI-CheckBox-Check")
+  lock:SetChecked(cfg.catBarLocked == true)
+  lock:SetScript("OnClick", function(self)
+    cfg.catBarLocked = self:GetChecked() == true
+    if frame and cfg.catBarLocked then
+      pcall(frame.StopMovingOrSizing, frame)
+    end
+    Cat.ApplyLock()
+  end)
+  local lockText = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+  lockText:SetPoint("LEFT", lock, "RIGHT", 4, 0)
+  lockText:SetText("Lock position")
+  parent:SetHeight(-y + 108)
+end
+
+function Cat.ApplyLock()
+  if not frame then
+    return
+  end
+  local locked = Cat.Locked()
+  frame:SetMovable(not locked)
+  frame:EnableMouse(not locked)
 end
