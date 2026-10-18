@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.6.2
+
+- **Talent Profiles.** Saved build plates now show on the right side of the open talent window and hide when the window closes, including after a spec change or a short wait.
+
 ## 1.6.1
 
 - **Cat Bar.** No longer shows an "Unknown macro option: combopoints" message. Combo points still show in Cat Form.
