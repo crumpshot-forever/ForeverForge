@@ -603,6 +603,17 @@ local function Solid(tex, r, g, b, a)
   end
 end
 
+local function FrameVisible(widget)
+  if type(widget) ~= "table" or type(widget.IsVisible) ~= "function" then
+    return false
+  end
+  local ok, shown = pcall(widget.IsVisible, widget)
+  if not ok or shown ~= true or IsSecret(shown) then
+    return false
+  end
+  return true
+end
+
 local function TalentHost()
   local frame = _G.PlayerSpellsFrame or _G.ClassTalentFrame
   if type(frame) ~= "table" then
@@ -1117,7 +1128,7 @@ RefreshSideTabs = function()
     return
   end
   HookPane(frame, pane)
-  if not pane:IsShown() then
+  if not FrameVisible(frame) or not FrameVisible(pane) then
     if profileTabs then
       profileTabs:Hide()
     end
@@ -1153,8 +1164,8 @@ RefreshSideTabs = function()
       if not tabsEnabled or not self:IsShown() then
         return
       end
-      local _, openPane = TalentHost()
-      if not openPane or not openPane:IsShown() then
+      local openFrame, openPane = TalentHost()
+      if not FrameVisible(openFrame) or not FrameVisible(openPane) then
         self:Hide()
         return
       end
