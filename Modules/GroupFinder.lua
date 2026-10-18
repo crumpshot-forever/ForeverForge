@@ -1,9 +1,9 @@
 --[[
-  Group Finder. Role filters on the Looking For Group window. Listings
-  already carry a role, a level, and a delisted flag. A role box shows
-  listings that have that role. Delisted listings stay hidden. Starting
-  a new search is blocked for addons, so the refresh button stays the
-  game's own button.
+  Group Finder. Role and class filters on the Looking For Group window.
+  A ticked role keeps listings that have that role. A ticked class keeps
+  listings that include that class. Both together mean both must match.
+  Delisted listings stay hidden. Starting a new search is blocked for
+  addons, so the refresh button stays the game's own button.
 ]]
 
 local FTK = ForeverForge
@@ -13,6 +13,18 @@ end
 
 local MODULE_ID = "GroupFinder"
 local LEVEL_SPAN = 5
+
+local CLASS_FILTERS = {
+  { "WARRIOR", "Wa" },
+  { "PALADIN", "Pa" },
+  { "HUNTER", "Hu" },
+  { "ROGUE", "Ro" },
+  { "PRIEST", "Pr" },
+  { "SHAMAN", "Sh" },
+  { "MAGE", "Ma" },
+  { "WARLOCK", "Lo" },
+  { "DRUID", "Dr" },
+}
 
 local function IsSecret(value)
   if value == nil or type(issecretvalue) ~= "function" then
@@ -62,7 +74,38 @@ local function Config()
   if type(cfg.roles) ~= "table" then
     cfg.roles = {}
   end
+  if type(cfg.classes) ~= "table" then
+    cfg.classes = {}
+  end
   return cfg
+end
+
+local function ClassColor(className)
+  local colors = _G.RAID_CLASS_COLORS
+  local color = colors and colors[className]
+  if type(color) == "table" then
+    local red = PlainNumber(color.r)
+    local green = PlainNumber(color.g)
+    local blue = PlainNumber(color.b)
+    if red and green and blue then
+      return { red, green, blue }
+    end
+  end
+  return { 1, 0.82, 0 }
+end
+
+local function ClassWanted(cfg)
+  local classes = cfg.classes
+  if type(classes) ~= "table" then
+    return false
+  end
+  local className
+  for className, on in pairs(classes) do
+    if on == true then
+      return true
+    end
+  end
+  return false
 end
 
 local function RoleWanted(cfg)
@@ -96,6 +139,42 @@ local function ListingRoles(resultID, info)
     return nil
   end
   return (tank or 0) > 0, (healer or 0) > 0, (dps or 0) > 0
+end
+
+local function MemberClass(resultID, memberIndex)
+  local ok, member = pcall(C_LFGList.GetSearchResultPlayerInfo, resultID, memberIndex)
+  if not ok or SecretTable(member) then
+    return nil
+  end
+  local className = member.classFilename
+  if type(className) ~= "string" or className == "" or IsSecret(className) then
+    return nil
+  end
+  return className
+end
+
+local function ListingClasses(resultID, info)
+  local members = PlainNumber(info.numMembers) or 1
+  if members < 1 then
+    members = 1
+  end
+  if members > 10 then
+    members = 10
+  end
+  local found = {}
+  local saw = false
+  local memberIndex
+  for memberIndex = 1, members do
+    local className = MemberClass(resultID, memberIndex)
+    if className then
+      found[className] = true
+      saw = true
+    end
+  end
+  if not saw then
+    return nil
+  end
+  return found
 end
 
 local function ListingLevel(resultID, info)
@@ -152,6 +231,19 @@ local function KeepResult(resultID, cfg)
     end
     return false
   end
+  if ClassWanted(cfg) then
+    local found = ListingClasses(resultID, info)
+    if found == nil then
+      return true
+    end
+    local className, on
+    for className, on in pairs(cfg.classes) do
+      if on == true and found[className] then
+        return true
+      end
+    end
+    return false
+  end
   return true
 end
 
@@ -204,20 +296,25 @@ local function TryHook()
 end
 
 local bar
+local classBar
 local boxes = {}
+local classBoxes = {}
 
 local function PaintBox(box, on)
   local label = box.label
-  if label then
-    if on then
-      label:SetTextColor(1, 0.82, 0)
-    else
-      label:SetTextColor(0.7, 0.7, 0.7)
-    end
+  if not label then
+    return
+  end
+  if on and box.onColor then
+    label:SetTextColor(box.onColor[1], box.onColor[2], box.onColor[3])
+  elseif on then
+    label:SetTextColor(1, 0.82, 0)
+  else
+    label:SetTextColor(0.55, 0.55, 0.55)
   end
 end
 
-local function MakeCheck(parent, text, getter, setter)
+local function MakeCheck(parent, text, getter, setter, onColor)
   local box = CreateFrame("CheckButton", nil, parent)
   box:SetSize(18, 18)
   box:SetNormalTexture("Interface\\Buttons\\UI-CheckBox-Up")
@@ -227,6 +324,7 @@ local function MakeCheck(parent, text, getter, setter)
   label:SetPoint("LEFT", box, "RIGHT", 1, 0)
   label:SetText(text)
   box.label = label
+  box.onColor = onColor
   box:SetChecked(getter())
   PaintBox(box, getter())
   box:SetScript("OnClick", function(self)
@@ -242,11 +340,11 @@ local function MakeCheck(parent, text, getter, setter)
   return box, label
 end
 
-local function LayoutBar()
+local function LayoutChecks(parent, list)
   local previous
   local index
-  for index = 1, #boxes do
-    local box = boxes[index]
+  for index = 1, #list do
+    local box = list[index]
     box:ClearAllPoints()
     if previous then
       local gap = 40
@@ -259,7 +357,7 @@ local function LayoutBar()
     end
     box:SetPoint("LEFT", previous, "RIGHT", gap, 0)
     else
-      box:SetPoint("LEFT", bar, "LEFT", 0, 0)
+      box:SetPoint("LEFT", parent, "LEFT", 0, 0)
     end
     previous = box
   end
@@ -274,6 +372,9 @@ local function EnsureBar()
   bar = CreateFrame("Frame", nil, browse)
   bar:SetSize(280, 20)
   bar:SetPoint("TOPRIGHT", refresh, "BOTTOMRIGHT", 0, -4)
+  classBar = CreateFrame("Frame", nil, browse)
+  classBar:SetSize(430, 20)
+  classBar:SetPoint("TOPRIGHT", bar, "BOTTOMRIGHT", 0, -2)
   local cfg = Config()
   local specs = {
     { "Tank", function() return cfg.roles.tank == true end, function(on) cfg.roles.tank = on end },
@@ -285,9 +386,20 @@ local function EnsureBar()
   for index = 1, #specs do
     boxes[index] = MakeCheck(bar, specs[index][1], specs[index][2], specs[index][3])
   end
-  LayoutBar()
+  for index = 1, #CLASS_FILTERS do
+    local className = CLASS_FILTERS[index][1]
+    local label = CLASS_FILTERS[index][2]
+    classBoxes[index] = MakeCheck(classBar, label, function()
+      return cfg.classes[className] == true
+    end, function(on)
+      cfg.classes[className] = on
+    end, ClassColor(className))
+  end
+  LayoutChecks(bar, boxes)
+  LayoutChecks(classBar, classBoxes)
   if not FTK:IsEnabled(MODULE_ID) then
     bar:Hide()
+    classBar:Hide()
   end
 end
 
@@ -310,11 +422,17 @@ local function Start()
   if bar then
     bar:Show()
   end
+  if classBar then
+    classBar:Show()
+  end
 end
 
 local function Stop()
   if bar then
     bar:Hide()
+  end
+  if classBar then
+    classBar:Hide()
   end
   local browse = _G.LFGBrowseFrame
   if browse and type(browse.UpdateResultList) == "function" then
@@ -325,7 +443,7 @@ end
 FTK:RegisterModule({
   id = MODULE_ID,
   name = "Group Finder",
-  description = "Role filters on the Looking For Group window. Tank, Heal, and DPS show listings with that role. Delisted listings stay hidden. ±5 lvl keeps people near your level. The refresh button stays the game's button, because this client blocks an addon from starting a search.",
+  description = "Role and class filters on the Looking For Group window. Tank, Heal, and DPS show listings with that role. The class row keeps listings that include that class. Both together must both match. Delisted listings stay hidden. ±5 lvl keeps people near your level.",
   defaultEnabled = true,
   onEnable = function()
     Start()
