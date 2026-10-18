@@ -1,0 +1,365 @@
+--[[
+  Group Finder. Role filters and an automatic refresh on the Looking For
+  Group window. Listings already carry a role, a level, and a delisted
+  flag. A role box shows listings that have that role. Auto asks the
+  window to search again while it is open. Delisted listings stay hidden.
+]]
+
+local FTK = ForeverForge
+if not FTK then
+  error("ForeverForge: Core.lua must load before Modules/GroupFinder.lua")
+end
+
+local MODULE_ID = "GroupFinder"
+local REFRESH_SECONDS = 15
+local LEVEL_SPAN = 5
+
+local function IsSecret(value)
+  if value == nil or type(issecretvalue) ~= "function" then
+    return false
+  end
+  local ok, secret = pcall(issecretvalue, value)
+  return ok and secret == true
+end
+
+local function PlainNumber(value)
+  if type(value) ~= "number" or IsSecret(value) then
+    return nil
+  end
+  local ok, valid = pcall(function()
+    return value == value
+  end)
+  if not ok or valid ~= true then
+    return nil
+  end
+  return value
+end
+
+local function SecretTable(value)
+  if type(value) ~= "table" then
+    return true
+  end
+  if IsSecret(value) then
+    return true
+  end
+  if type(issecrettable) == "function" then
+    local ok, secret = pcall(issecrettable, value)
+    if ok and secret == true then
+      return true
+    end
+  end
+  return false
+end
+
+local function Config()
+  local cfg = FTK:GetConfig(MODULE_ID)
+  if cfg.auto == nil then
+    cfg.auto = true
+  end
+  if cfg.hideDelisted == nil then
+    cfg.hideDelisted = true
+  end
+  if cfg.nearLevel == nil then
+    cfg.nearLevel = false
+  end
+  if type(cfg.roles) ~= "table" then
+    cfg.roles = {}
+  end
+  return cfg
+end
+
+local function RoleWanted(cfg)
+  return cfg.roles.tank == true or cfg.roles.healer == true or cfg.roles.dps == true
+end
+
+local function ListingRoles(resultID, info)
+  local members = PlainNumber(info.numMembers)
+  if not members then
+    return nil
+  end
+  if members <= 1 then
+    local ok, member = pcall(C_LFGList.GetSearchResultPlayerInfo, resultID, 1)
+    if not ok or SecretTable(member) then
+      return nil
+    end
+    local roles = member.lfgRoles
+    if SecretTable(roles) then
+      return nil
+    end
+    return roles.tank == true, roles.healer == true, roles.dps == true
+  end
+  local ok, counts = pcall(C_LFGList.GetSearchResultMemberCounts, resultID)
+  if not ok or SecretTable(counts) then
+    return nil
+  end
+  local tank = PlainNumber(counts.TANK)
+  local healer = PlainNumber(counts.HEALER)
+  local dps = PlainNumber(counts.DAMAGER)
+  if tank == nil and healer == nil and dps == nil then
+    return nil
+  end
+  return (tank or 0) > 0, (healer or 0) > 0, (dps or 0) > 0
+end
+
+local function ListingLevel(resultID, info)
+  local members = PlainNumber(info.numMembers)
+  if members == 1 then
+    local ok, member = pcall(C_LFGList.GetSearchResultPlayerInfo, resultID, 1)
+    if ok and not SecretTable(member) then
+      return PlainNumber(member.level)
+    end
+    return nil
+  end
+  local ok, leader = pcall(C_LFGList.GetSearchResultLeaderInfo, resultID)
+  if ok and not SecretTable(leader) then
+    return PlainNumber(leader.level)
+  end
+  return nil
+end
+
+local function KeepResult(resultID, cfg)
+  if type(C_LFGList) ~= "table" or type(C_LFGList.GetSearchResultInfo) ~= "function" then
+    return true
+  end
+  local ok, info = pcall(C_LFGList.GetSearchResultInfo, resultID)
+  if not ok or SecretTable(info) then
+    return true
+  end
+  if info.hasSelf == true then
+    return true
+  end
+  if cfg.hideDelisted and info.isDelisted == true then
+    return false
+  end
+  if cfg.nearLevel then
+    local mineOk, mine = pcall(UnitLevel, "player")
+    mine = mineOk and PlainNumber(mine) or nil
+    local theirs = ListingLevel(resultID, info)
+    if mine and theirs and (theirs < mine - LEVEL_SPAN or theirs > mine + LEVEL_SPAN) then
+      return false
+    end
+  end
+  if RoleWanted(cfg) then
+    local tank, healer, dps = ListingRoles(resultID, info)
+    if tank == nil then
+      return true
+    end
+    if cfg.roles.tank and tank then
+      return true
+    end
+    if cfg.roles.healer and healer then
+      return true
+    end
+    if cfg.roles.dps and dps then
+      return true
+    end
+    return false
+  end
+  return true
+end
+
+local filtering = false
+
+local function ApplyFilter(browse)
+  if filtering or not FTK:IsEnabled(MODULE_ID) then
+    return
+  end
+  local results = browse.results
+  if SecretTable(results) then
+    return
+  end
+  local cfg = Config()
+  local kept = {}
+  local index
+  for index = 1, #results do
+    local resultID = results[index]
+    if KeepResult(resultID, cfg) then
+      kept[#kept + 1] = resultID
+    end
+  end
+  if #kept == #results then
+    return
+  end
+  filtering = true
+  browse.results = kept
+  browse.totalResults = #kept
+  if type(browse.UpdateResults) == "function" then
+    pcall(browse.UpdateResults, browse)
+  end
+  filtering = false
+end
+
+local hooked = false
+
+local function TryHook()
+  if hooked then
+    return true
+  end
+  local mixin = _G.LFGBrowseMixin
+  if type(mixin) ~= "table" or type(mixin.UpdateResultList) ~= "function" or type(hooksecurefunc) ~= "function" then
+    return false
+  end
+  hooksecurefunc(mixin, "UpdateResultList", function(self)
+    ApplyFilter(self)
+  end)
+  hooked = true
+  return true
+end
+
+local bar
+local boxes = {}
+
+local function PaintBox(box, on)
+  local label = box.label
+  if label then
+    if on then
+      label:SetTextColor(1, 0.82, 0)
+    else
+      label:SetTextColor(0.7, 0.7, 0.7)
+    end
+  end
+end
+
+local function MakeCheck(parent, text, getter, setter)
+  local box = CreateFrame("CheckButton", nil, parent)
+  box:SetSize(18, 18)
+  box:SetNormalTexture("Interface\\Buttons\\UI-CheckBox-Up")
+  box:SetPushedTexture("Interface\\Buttons\\UI-CheckBox-Down")
+  box:SetCheckedTexture("Interface\\Buttons\\UI-CheckBox-Check")
+  local label = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+  label:SetPoint("LEFT", box, "RIGHT", 1, 0)
+  label:SetText(text)
+  box.label = label
+  box:SetChecked(getter())
+  PaintBox(box, getter())
+  box:SetScript("OnClick", function(self)
+    local on = self:GetChecked() == true
+    setter(on)
+    PaintBox(self, on)
+    local browse = _G.LFGBrowseFrame
+    if browse and type(browse.UpdateResultList) == "function" then
+      pcall(browse.UpdateResultList, browse)
+    end
+  end)
+  return box, label
+end
+
+local function LayoutBar()
+  local previous
+  local index
+  for index = 1, #boxes do
+    local box = boxes[index]
+    box:ClearAllPoints()
+    if previous then
+      local gap = 40
+    if previous.label and type(previous.label.GetStringWidth) == "function" then
+      local widthOk, width = pcall(previous.label.GetStringWidth, previous.label)
+      width = widthOk and PlainNumber(width) or nil
+      if width and width > 8 then
+        gap = width + 10
+      end
+    end
+    box:SetPoint("LEFT", previous, "RIGHT", gap, 0)
+    else
+      box:SetPoint("LEFT", bar, "LEFT", 0, 0)
+    end
+    previous = box
+  end
+end
+
+local function EnsureBar()
+  local browse = _G.LFGBrowseFrame
+  local refresh = browse and browse.RefreshButton
+  if not browse or not refresh or bar then
+    return
+  end
+  bar = CreateFrame("Frame", nil, browse)
+  bar:SetSize(280, 20)
+  bar:SetPoint("TOPRIGHT", refresh, "BOTTOMRIGHT", 0, -4)
+  local cfg = Config()
+  local specs = {
+    { "Tank", function() return cfg.roles.tank == true end, function(on) cfg.roles.tank = on end },
+    { "Heal", function() return cfg.roles.healer == true end, function(on) cfg.roles.healer = on end },
+    { "DPS", function() return cfg.roles.dps == true end, function(on) cfg.roles.dps = on end },
+    { "Auto", function() return cfg.auto == true end, function(on) cfg.auto = on end },
+    { "±5 lvl", function() return cfg.nearLevel == true end, function(on) cfg.nearLevel = on end },
+  }
+  local index
+  for index = 1, #specs do
+    boxes[index] = MakeCheck(bar, specs[index][1], specs[index][2], specs[index][3])
+  end
+  LayoutBar()
+  if not FTK:IsEnabled(MODULE_ID) then
+    bar:Hide()
+  end
+end
+
+local elapsed = 0
+
+local function Tick(delta)
+  if not FTK:IsEnabled(MODULE_ID) then
+    return
+  end
+  TryHook()
+  EnsureBar()
+  local browse = _G.LFGBrowseFrame
+  if not browse or type(browse.IsVisible) ~= "function" then
+    return
+  end
+  local ok, shown = pcall(browse.IsVisible, browse)
+  if not ok or shown ~= true or IsSecret(shown) then
+    elapsed = 0
+    return
+  end
+  if not Config().auto then
+    elapsed = 0
+    return
+  end
+  elapsed = elapsed + (PlainNumber(delta) or 0)
+  if elapsed < REFRESH_SECONDS then
+    return
+  end
+  elapsed = 0
+  if browse.searching then
+    return
+  end
+  if type(_G.LFGBrowse_DoSearch) == "function" then
+    pcall(_G.LFGBrowse_DoSearch)
+  end
+end
+
+local driver = CreateFrame("Frame")
+driver:SetScript("OnUpdate", function(_, delta)
+  Tick(delta)
+end)
+
+local function Start()
+  TryHook()
+  EnsureBar()
+  if bar then
+    bar:Show()
+  end
+end
+
+local function Stop()
+  if bar then
+    bar:Hide()
+  end
+  local browse = _G.LFGBrowseFrame
+  if browse and type(browse.UpdateResultList) == "function" then
+    pcall(browse.UpdateResultList, browse)
+  end
+end
+
+FTK:RegisterModule({
+  id = MODULE_ID,
+  name = "Group Finder",
+  description = "Role filters and an automatic refresh on the Looking For Group window. Tank, Heal, and DPS show listings with that role. Auto refreshes the list while the window is open. Delisted listings stay hidden. ±5 lvl keeps people near your level.",
+  defaultEnabled = true,
+  onEnable = function()
+    Start()
+  end,
+  onDisable = function()
+    Stop()
+  end,
+})
