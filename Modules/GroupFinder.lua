@@ -1,7 +1,9 @@
 --[[
   Group Finder. Role and class filters on the Looking For Group window.
   A ticked role keeps listings that have that role. A ticked class keeps
-  listings that include that class. Both together mean both must match.
+  listings that include that class. DPS and Rogue means only rogue DPS.
+  Several roles mean any of those roles. Several classes mean any of
+  those classes.
   Delisted listings stay hidden. Starting a new search is blocked for
   addons, so the refresh button stays the game's own button.
 ]]
@@ -217,32 +219,28 @@ local function KeepResult(resultID, cfg)
   end
   if RoleWanted(cfg) then
     local tank, healer, dps = ListingRoles(resultID, info)
-    if tank == nil then
-      return true
+    if tank ~= nil then
+      local roleHit = (cfg.roles.tank and tank) or (cfg.roles.healer and healer) or (cfg.roles.dps and dps)
+      if not roleHit then
+        return false
+      end
     end
-    if cfg.roles.tank and tank then
-      return true
-    end
-    if cfg.roles.healer and healer then
-      return true
-    end
-    if cfg.roles.dps and dps then
-      return true
-    end
-    return false
   end
   if ClassWanted(cfg) then
     local found = ListingClasses(resultID, info)
-    if found == nil then
-      return true
-    end
-    local className, on
-    for className, on in pairs(cfg.classes) do
-      if on == true and found[className] then
-        return true
+    if found ~= nil then
+      local classHit = false
+      local className, on
+      for className, on in pairs(cfg.classes) do
+        if on == true and found[className] then
+          classHit = true
+          break
+        end
+      end
+      if not classHit then
+        return false
       end
     end
-    return false
   end
   return true
 end
@@ -397,6 +395,39 @@ local function EnsureBar()
   end
   LayoutChecks(bar, boxes)
   LayoutChecks(classBar, classBoxes)
+  local function CenterClassRow()
+    local width = 20
+    if classBoxes[1] and classBoxes[#classBoxes] then
+      local leftOk, left = pcall(classBoxes[1].GetLeft, classBoxes[1])
+      local rightBox = classBoxes[#classBoxes]
+      local rightOk, right = pcall(rightBox.GetRight, rightBox)
+      left = leftOk and PlainNumber(left) or nil
+      right = rightOk and PlainNumber(right) or nil
+      if left and right and right > left then
+        width = right - left
+      end
+    end
+    classBar:SetWidth(width)
+    classBar:ClearAllPoints()
+    local hostX, barX
+    local hostOk, hx = pcall(browse.GetCenter, browse)
+    local barOk, bx = pcall(bar.GetCenter, bar)
+    hostX = hostOk and PlainNumber(hx) or nil
+    barX = barOk and PlainNumber(bx) or nil
+    local shift = 0
+    if hostX and barX then
+      shift = hostX - barX
+    end
+    classBar:SetPoint("TOP", bar, "BOTTOM", shift, -2)
+  end
+  CenterClassRow()
+  if type(C_Timer) == "table" and type(C_Timer.After) == "function" then
+    C_Timer.After(0, CenterClassRow)
+  end
+  if not browse.ftkGroupFinderCentered then
+    browse.ftkGroupFinderCentered = true
+    browse:HookScript("OnShow", CenterClassRow)
+  end
   if not FTK:IsEnabled(MODULE_ID) then
     bar:Hide()
     classBar:Hide()
@@ -443,7 +474,7 @@ end
 FTK:RegisterModule({
   id = MODULE_ID,
   name = "Group Finder",
-  description = "Role and class filters on the Looking For Group window. Tank, Heal, and DPS show listings with that role. The class row keeps listings that include that class. Both together must both match. Delisted listings stay hidden. ±5 lvl keeps people near your level.",
+  description = "Role and class filters on the Looking For Group window. They apply together. DPS and Rogue shows only rogue DPS, not every rogue and every DPS. Several roles mean any of those roles. Several classes mean any of those classes. Delisted listings stay hidden. ±5 lvl keeps people near your level.",
   defaultEnabled = true,
   onEnable = function()
     Start()
