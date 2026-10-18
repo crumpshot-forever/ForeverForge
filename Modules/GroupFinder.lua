@@ -1,8 +1,9 @@
 --[[
-  Group Finder. Role filters and an automatic refresh on the Looking For
-  Group window. Listings already carry a role, a level, and a delisted
-  flag. A role box shows listings that have that role. Auto asks the
-  window to search again while it is open. Delisted listings stay hidden.
+  Group Finder. Role filters on the Looking For Group window. Listings
+  already carry a role, a level, and a delisted flag. A role box shows
+  listings that have that role. Delisted listings stay hidden. Starting
+  a new search is blocked for addons, so the refresh button stays the
+  game's own button.
 ]]
 
 local FTK = ForeverForge
@@ -11,7 +12,6 @@ if not FTK then
 end
 
 local MODULE_ID = "GroupFinder"
-local REFRESH_SECONDS = 15
 local LEVEL_SPAN = 5
 
 local function IsSecret(value)
@@ -53,9 +53,6 @@ end
 
 local function Config()
   local cfg = FTK:GetConfig(MODULE_ID)
-  if cfg.auto == nil then
-    cfg.auto = true
-  end
   if cfg.hideDelisted == nil then
     cfg.hideDelisted = true
   end
@@ -195,11 +192,11 @@ local function TryHook()
   if hooked then
     return true
   end
-  local mixin = _G.LFGBrowseMixin
-  if type(mixin) ~= "table" or type(mixin.UpdateResultList) ~= "function" or type(hooksecurefunc) ~= "function" then
+  local browse = _G.LFGBrowseFrame
+  if type(browse) ~= "table" or type(browse.UpdateResultList) ~= "function" or type(hooksecurefunc) ~= "function" then
     return false
   end
-  hooksecurefunc(mixin, "UpdateResultList", function(self)
+  hooksecurefunc(browse, "UpdateResultList", function(self)
     ApplyFilter(self)
   end)
   hooked = true
@@ -236,6 +233,7 @@ local function MakeCheck(parent, text, getter, setter)
     local on = self:GetChecked() == true
     setter(on)
     PaintBox(self, on)
+    TryHook()
     local browse = _G.LFGBrowseFrame
     if browse and type(browse.UpdateResultList) == "function" then
       pcall(browse.UpdateResultList, browse)
@@ -281,7 +279,6 @@ local function EnsureBar()
     { "Tank", function() return cfg.roles.tank == true end, function(on) cfg.roles.tank = on end },
     { "Heal", function() return cfg.roles.healer == true end, function(on) cfg.roles.healer = on end },
     { "DPS", function() return cfg.roles.dps == true end, function(on) cfg.roles.dps = on end },
-    { "Auto", function() return cfg.auto == true end, function(on) cfg.auto = on end },
     { "±5 lvl", function() return cfg.nearLevel == true end, function(on) cfg.nearLevel = on end },
   }
   local index
@@ -294,43 +291,17 @@ local function EnsureBar()
   end
 end
 
-local elapsed = 0
-
-local function Tick(delta)
+local function Tick()
   if not FTK:IsEnabled(MODULE_ID) then
     return
   end
   TryHook()
   EnsureBar()
-  local browse = _G.LFGBrowseFrame
-  if not browse or type(browse.IsVisible) ~= "function" then
-    return
-  end
-  local ok, shown = pcall(browse.IsVisible, browse)
-  if not ok or shown ~= true or IsSecret(shown) then
-    elapsed = 0
-    return
-  end
-  if not Config().auto then
-    elapsed = 0
-    return
-  end
-  elapsed = elapsed + (PlainNumber(delta) or 0)
-  if elapsed < REFRESH_SECONDS then
-    return
-  end
-  elapsed = 0
-  if browse.searching then
-    return
-  end
-  if type(_G.LFGBrowse_DoSearch) == "function" then
-    pcall(_G.LFGBrowse_DoSearch)
-  end
 end
 
 local driver = CreateFrame("Frame")
-driver:SetScript("OnUpdate", function(_, delta)
-  Tick(delta)
+driver:SetScript("OnUpdate", function()
+  Tick()
 end)
 
 local function Start()
@@ -354,7 +325,7 @@ end
 FTK:RegisterModule({
   id = MODULE_ID,
   name = "Group Finder",
-  description = "Role filters and an automatic refresh on the Looking For Group window. Tank, Heal, and DPS show listings with that role. Auto refreshes the list while the window is open. Delisted listings stay hidden. ±5 lvl keeps people near your level.",
+  description = "Role filters on the Looking For Group window. Tank, Heal, and DPS show listings with that role. Delisted listings stay hidden. ±5 lvl keeps people near your level. The refresh button stays the game's button, because this client blocks an addon from starting a search.",
   defaultEnabled = true,
   onEnable = function()
     Start()
