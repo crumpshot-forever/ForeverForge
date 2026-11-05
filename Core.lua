@@ -442,6 +442,8 @@ end
 local blockWatch = CreateFrame("Frame")
 blockWatch:RegisterEvent("ADDON_ACTION_FORBIDDEN")
 blockWatch:RegisterEvent("ADDON_ACTION_BLOCKED")
+local lastBlockLine = ""
+local lastBlockAt = 0
 blockWatch:SetScript("OnEvent", function(_, _, ...)
   local parts = {}
   local count = select("#", ...)
@@ -457,9 +459,26 @@ blockWatch:SetScript("OnEvent", function(_, _, ...)
       parts[#parts + 1] = value
     end
   end
-  if #parts > 0 then
-    FTK:Print("Blocked action: " .. table.concat(parts, ", "))
+  -- The event fires for every addon. Only report our own calls, or chat
+  -- fills with another addon's blocked SetWidth and SetHeight.
+  local owner = parts[1]
+  if type(owner) ~= "string" or owner:lower() ~= "foreverforge" then
+    return
   end
+  local line = table.concat(parts, ", ")
+  local now = 0
+  if type(GetTime) == "function" then
+    local ok, stamp = pcall(GetTime)
+    if ok and type(stamp) == "number" then
+      now = stamp
+    end
+  end
+  if line == lastBlockLine and now - lastBlockAt < 5 then
+    return
+  end
+  lastBlockLine = line
+  lastBlockAt = now
+  FTK:Print("Blocked action: " .. line)
 end)
 
 -- /tm is a Blizzard slash handler that calls protected SetRaidTarget. It waits
