@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.6.3
+
+- **Blocked-action messages.** Blocked actions from other addons, such as FollowTheArrow, are no longer reported as Forever Forge. Forever Forge still reports its own blocked calls, at most once every 5 seconds for the same line.
+
 ## 1.6.2
 
 - **Talent Profiles.** Saved build plates now show on the right side of the open talent window and hide when the window closes, including after a spec change or a short wait.
