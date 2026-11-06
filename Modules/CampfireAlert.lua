@@ -19,6 +19,10 @@
   entry still waits out a 60 second cooldown from the last alert.
 
   Nothing is sent to public chat.
+
+  Hovering a camp item adds one line naming that item's buff type. The
+  line is chosen from the item id on the tooltip. Numbers scale with
+  level, so the line names the effect and the class buff it excludes.
 ]]
 
 local FTK = ForeverForge
@@ -41,8 +45,9 @@ local latched = false
 local nextAlert = 0
 local absentAccrued = 0
 local absentMark = nil
-local lastState = nil
 local scanElapsed = 0
+local tipsInstalled = false
+local addingTip = false
 
 local function IsSecret(value)
   if value == nil or not issecretvalue then
@@ -89,10 +94,6 @@ end
 
 local function SoundOn()
   return Config().sound ~= false
-end
-
-local function DebugOn()
-  return Config().debug == true
 end
 
 local function ExpectedName()
@@ -212,25 +213,6 @@ local function Scan()
   return "absent"
 end
 
-local function DebugState(state)
-  if not DebugOn() or state == lastState then
-    return
-  end
-  lastState = state
-  if state == "present" then
-    local name = ExpectedName()
-    if name then
-      FTK:Print("Campfire Alert debug: Campfire Nearby is on you (" .. name .. ").")
-    else
-      FTK:Print("Campfire Alert debug: Campfire Nearby is on you.")
-    end
-  elseif state == "absent" then
-    FTK:Print("Campfire Alert debug: Campfire Nearby is not on you.")
-  else
-    FTK:Print("Campfire Alert debug: aura bar unreadable. Holding the current alert state.")
-  end
-end
-
 local function ClearPresence()
   latched = false
   absentAccrued = 0
@@ -249,7 +231,6 @@ local function Evaluate()
     return
   end
   local state = Scan()
-  DebugState(state)
   local now = Now()
   if state == "present" then
     absentAccrued = 0
@@ -320,8 +301,331 @@ local function Stop()
   pcall(frame.UnregisterAllEvents, frame)
   ClearPresence()
   nextAlert = 0
-  lastState = nil
   scanElapsed = 0
+end
+
+-- Item ids are the Forever 1.60.1 camp features. Higher tiers keep the
+-- tier-1 buff. Fires, the reagent bots, the Anarchist's Workbench, and
+-- the Iron Oven do not grant a stat buff.
+local BUFF_STAMINA = "Camp buff: Stamina. Does not stack with Power Word: Fortitude."
+local BUFF_INTELLECT = "Camp buff: Intellect. Does not stack with Arcane Intellect."
+local BUFF_ATTACK = "Camp buff: Melee attack power. Does not stack with Blessing of Might."
+local BUFF_STRENGTH = "Camp buff: Strength. Does not stack with Strength of Earth Totem."
+local BUFF_MANA = "Camp buff: Mana every 5 sec. Does not stack with Blessing of Wisdom."
+local BUFF_SPIRIT = "Camp buff: Spirit. Does not stack with Divine Spirit."
+local BUFF_LUTE = "Camp buff: Armor, all stats, and resistances. Does not stack with Mark of the Wild."
+local BUFF_STATS = "Camp buff: 8% all stats. Does not stack with Blessing of Kings."
+local BUFF_CRIT = "Camp buff: 2% critical strike. Does not stack with Moonkin Aura."
+local BUFF_REST = "Camp buff: Rested experience."
+local BUFF_FOOD = "Camp buff: Stamina food."
+local BUFF_NONE = "Camp buff: none"
+
+local BUFF_BY_ID = {
+  [279968] = BUFF_STAMINA, -- First Aid Kit
+  [279940] = BUFF_STAMINA, -- Toxin Study
+  [279951] = BUFF_STAMINA, -- Plague Doctor's Laboratory
+  [279962] = BUFF_INTELLECT, -- Incense Candle
+  [279964] = BUFF_INTELLECT, -- Greenhouse
+  [279947] = BUFF_INTELLECT, -- Seed Hybridizer
+  [279960] = BUFF_ATTACK, -- Lodestone
+  [279948] = BUFF_ATTACK, -- Rock Garden
+  [279952] = BUFF_ATTACK, -- Molten Foundry
+  [279944] = BUFF_STRENGTH, -- Sharpening Wheel
+  [279988] = BUFF_STRENGTH, -- Anvil
+  [279955] = BUFF_STRENGTH, -- Master Forge
+  [279956] = BUFF_MANA, -- Mana Well
+  [279970] = BUFF_MANA, -- Fermenter
+  [279990] = BUFF_MANA, -- Alchemy Laboratory
+  [279973] = BUFF_SPIRIT, -- Faction Banner (Alliance)
+  [279972] = BUFF_SPIRIT, -- Faction Banner (Horde)
+  [279943] = BUFF_SPIRIT, -- Spinning Wheel
+  [279959] = BUFF_SPIRIT, -- Loom
+  [279976] = BUFF_LUTE, -- Enchanted Lute
+  [279985] = BUFF_LUTE, -- Arcane Salvager
+  [279987] = BUFF_LUTE, -- Arcane Forge
+  [279967] = BUFF_STATS, -- Fish Bowl
+  [279965] = BUFF_STATS, -- Fishing Rack
+  [279966] = BUFF_STATS, -- Fishing Hut
+  [279979] = BUFF_CRIT, -- Camp Chair
+  [279969] = BUFF_CRIT, -- Field Guide
+  [279938] = BUFF_CRIT, -- Trapper's Workbench
+  [279978] = BUFF_REST, -- Camp Tent
+  [279941] = BUFF_REST, -- Tanning Rack
+  [279945] = BUFF_REST, -- Sewing Machine
+  [279957] = BUFF_FOOD, -- Cookie's Feast
+  [279981] = BUFF_NONE, -- Basic Campfire Kit
+  [279961] = BUFF_NONE, -- Journeyman Campfire Kit
+  [279974] = BUFF_NONE, -- Expert Campfire Kit
+  [279950] = BUFF_NONE, -- Reagent Bot
+  [279949] = BUFF_NONE, -- Repair Bot
+  [279989] = BUFF_NONE, -- Anarchist's Workbench
+  [279982] = BUFF_NONE, -- Iron Oven
+}
+
+local BUFF_BY_NAME = {
+  ["First Aid Kit"] = BUFF_STAMINA,
+  ["Toxin Study"] = BUFF_STAMINA,
+  ["Plague Doctor's Laboratory"] = BUFF_STAMINA,
+  ["Incense Candle"] = BUFF_INTELLECT,
+  ["Greenhouse"] = BUFF_INTELLECT,
+  ["Seed Hybridizer"] = BUFF_INTELLECT,
+  ["Lodestone"] = BUFF_ATTACK,
+  ["Rock Garden"] = BUFF_ATTACK,
+  ["Molten Foundry"] = BUFF_ATTACK,
+  ["Sharpening Wheel"] = BUFF_STRENGTH,
+  ["Master Forge"] = BUFF_STRENGTH,
+  ["Mana Well"] = BUFF_MANA,
+  ["Fermenter"] = BUFF_MANA,
+  ["Alchemy Laboratory"] = BUFF_MANA,
+  ["Faction Banner"] = BUFF_SPIRIT,
+  ["Enchanted Lute"] = BUFF_LUTE,
+  ["Arcane Salvager"] = BUFF_LUTE,
+  ["Arcane Forge"] = BUFF_LUTE,
+  ["Fish Bowl"] = BUFF_STATS,
+  ["Fishing Bowl"] = BUFF_STATS,
+  ["Fishing Rack"] = BUFF_STATS,
+  ["Fishing Hut"] = BUFF_STATS,
+  ["Camp Chair"] = BUFF_CRIT,
+  ["Camp Tent"] = BUFF_REST,
+  ["Tanning Rack"] = BUFF_REST,
+  ["Sewing Machine"] = BUFF_REST,
+  ["Cookie's Feast"] = BUFF_FOOD,
+  ["Basic Campfire"] = BUFF_NONE,
+  ["Basic Campfire Kit"] = BUFF_NONE,
+  ["Journeyman Campfire"] = BUFF_NONE,
+  ["Journeyman Campfire Kit"] = BUFF_NONE,
+  ["Expert Campfire"] = BUFF_NONE,
+  ["Expert Campfire Kit"] = BUFF_NONE,
+  ["Reagent Bot"] = BUFF_NONE,
+  ["Repair Bot"] = BUFF_NONE,
+  ["Anarchist's Workbench"] = BUFF_NONE,
+  ["Trapper's Workbench"] = BUFF_CRIT,
+  ["Iron Oven"] = BUFF_NONE,
+}
+
+-- These names also exist on ordinary world objects. Only treat them as
+-- camp items when the tooltip itself mentions a campfire.
+local GENERIC_CAMP_NAME = {
+  ["Anvil"] = BUFF_STRENGTH,
+  ["Loom"] = BUFF_SPIRIT,
+  ["Spinning Wheel"] = BUFF_SPIRIT,
+  ["Field Guide"] = BUFF_CRIT,
+}
+
+local function ItemIdFromLink(link)
+  if type(link) ~= "string" or IsSecret(link) then
+    return nil
+  end
+  local ok, digits = pcall(string.match, link, "item:(%d+)")
+  if not ok or type(digits) ~= "string" then
+    return nil
+  end
+  return PlainNumber(tonumber(digits))
+end
+
+local function ItemIdFromTooltip(tooltip)
+  if not tooltip or not tooltip.GetItem then
+    return nil
+  end
+  local ok, _, link = pcall(tooltip.GetItem, tooltip)
+  if not ok then
+    return nil
+  end
+  return ItemIdFromLink(link)
+end
+
+local function ItemIdFromData(data)
+  if type(data) ~= "table" then
+    return nil
+  end
+  if TooltipUtil and TooltipUtil.SurfaceArgs then
+    pcall(TooltipUtil.SurfaceArgs, data)
+  end
+  return PlainNumber(data.id)
+end
+
+local function TooltipTitle(tooltip)
+  if not tooltip or not tooltip.GetName then
+    return nil
+  end
+  local name = tooltip:GetName()
+  if type(name) ~= "string" or name == "" or IsSecret(name) then
+    return nil
+  end
+  local line = _G[name .. "TextLeft1"]
+  if not line or not line.GetText then
+    return nil
+  end
+  local ok, text = pcall(line.GetText, line)
+  if not ok then
+    return nil
+  end
+  return PlainString(text)
+end
+
+local function TitleFromData(data)
+  if type(data) ~= "table" then
+    return nil
+  end
+  if TooltipUtil and TooltipUtil.SurfaceArgs then
+    pcall(TooltipUtil.SurfaceArgs, data)
+  end
+  local lines = data.lines
+  if type(lines) ~= "table" or IsSecret(lines) then
+    return nil
+  end
+  local first = lines[1]
+  if type(first) ~= "table" or IsSecret(first) then
+    return nil
+  end
+  if TooltipUtil and TooltipUtil.SurfaceArgs then
+    pcall(TooltipUtil.SurfaceArgs, first)
+  end
+  return PlainString(first.leftText)
+end
+
+local function MentionsCamp(tooltip)
+  if not tooltip or not tooltip.GetName or not tooltip.NumLines then
+    return false
+  end
+  local name = tooltip:GetName()
+  if type(name) ~= "string" or name == "" or IsSecret(name) then
+    return false
+  end
+  local count = tooltip:NumLines()
+  if type(count) ~= "number" or IsSecret(count) or count < 1 then
+    return false
+  end
+  if count > 40 then
+    count = 40
+  end
+  local i
+  for i = 1, count do
+    local line = _G[name .. "TextLeft" .. i]
+    if line and line.GetText then
+      local ok, text = pcall(line.GetText, line)
+      local plain = ok and PlainString(text) or nil
+      if plain then
+        local folded = string.lower(plain)
+        if string.find(folded, "campfire", 1, true) or string.find(folded, "camping", 1, true) then
+          return true
+        end
+      end
+    end
+  end
+  return false
+end
+
+local function LineAlreadyShown(tooltip, text)
+  if not tooltip.GetName or not tooltip.NumLines then
+    return false
+  end
+  local name = tooltip:GetName()
+  if type(name) ~= "string" or name == "" or IsSecret(name) then
+    return false
+  end
+  local count = tooltip:NumLines()
+  if type(count) ~= "number" or IsSecret(count) or count < 1 then
+    return false
+  end
+  if count > 40 then
+    count = 40
+  end
+  local i
+  for i = 1, count do
+    local line = _G[name .. "TextLeft" .. i]
+    if line and line.GetText then
+      local ok, existing = pcall(line.GetText, line)
+      local plain = ok and PlainString(existing) or nil
+      if plain and plain == text then
+        return true
+      end
+    end
+  end
+  return false
+end
+
+local function AppendBuff(tooltip, text)
+  if addingTip or not tooltip or not tooltip.AddLine then
+    return
+  end
+  if LineAlreadyShown(tooltip, text) then
+    return
+  end
+  addingTip = true
+  pcall(tooltip.AddLine, tooltip, text, 1, 0.82, 0.45, true)
+  addingTip = false
+end
+
+local function BuffForTooltip(tooltip, data, trustDataId)
+  local itemId = ItemIdFromTooltip(tooltip)
+  if not itemId and trustDataId then
+    itemId = ItemIdFromData(data)
+  end
+  if itemId and BUFF_BY_ID[itemId] then
+    return BUFF_BY_ID[itemId]
+  end
+  local title = TooltipTitle(tooltip) or TitleFromData(data)
+  if not title then
+    return nil
+  end
+  local straight = title
+  local ok, folded = pcall(string.gsub, title, "’", "'")
+  if ok and type(folded) == "string" then
+    straight = folded
+  end
+  if BUFF_BY_NAME[straight] then
+    return BUFF_BY_NAME[straight]
+  end
+  local generic = GENERIC_CAMP_NAME[straight]
+  if generic and MentionsCamp(tooltip) then
+    return generic
+  end
+  return nil
+end
+
+local function OnCampItemTooltip(tooltip, data)
+  if not FTK:IsEnabled(MODULE_ID) then
+    return
+  end
+  local text = BuffForTooltip(tooltip, data, true)
+  if text then
+    AppendBuff(tooltip, text)
+  end
+end
+
+local function OnCampObjectTooltip(tooltip, data)
+  if not FTK:IsEnabled(MODULE_ID) then
+    return
+  end
+  local text = BuffForTooltip(tooltip, data, false)
+  if text then
+    AppendBuff(tooltip, text)
+  end
+end
+
+local function InstallTips()
+  if tipsInstalled then
+    return
+  end
+  tipsInstalled = true
+  local processor = TooltipDataProcessor
+  local types = Enum and Enum.TooltipDataType
+  if processor and processor.AddTooltipPostCall and types then
+    -- Item is enum value 0, which is false in Lua, so test nil.
+    if types.Item ~= nil then
+      pcall(processor.AddTooltipPostCall, types.Item, OnCampItemTooltip)
+    end
+    if types.Object ~= nil then
+      pcall(processor.AddTooltipPostCall, types.Object, OnCampObjectTooltip)
+    end
+  end
+  if GameTooltip and GameTooltip.HookScript then
+    pcall(GameTooltip.HookScript, GameTooltip, "OnTooltipSetItem", OnCampItemTooltip)
+  end
+  if ItemRefTooltip and ItemRefTooltip.HookScript then
+    pcall(ItemRefTooltip.HookScript, ItemRefTooltip, "OnTooltipSetItem", OnCampItemTooltip)
+  end
 end
 
 local function CheckLine(parent, label, y, getter, setter)
@@ -348,18 +652,12 @@ local function BuildOptions(_, parent)
   note:SetWidth(420)
   note:SetJustifyH("LEFT")
   note:SetWordWrap(true)
-  note:SetText("Off until you enable Campfire Alert in the list. A confirmed Campfire Nearby buff posts one local line. There is no map marker: that buff does not include where the fire is. The same alert covers every camp in range. Turning the module off stops the scan.")
-  local y = -78
+  note:SetText("Off until you enable Campfire Alert in the list. A confirmed Campfire Nearby buff posts one local line. Hovering a camp item adds its buff type. There is no map marker: that buff does not include where the fire is. The same alert covers every camp in range. Turning the module off stops the scan and the tooltip line.")
+  local y = -92
   y = CheckLine(parent, "Play a sound", y, function()
     return SoundOn()
   end, function(value)
     Config().sound = value == true
-  end)
-  y = CheckLine(parent, "Debug aura scan", y, function()
-    return DebugOn()
-  end, function(value)
-    Config().debug = value == true
-    lastState = nil
   end)
   parent:SetHeight(20 - y)
 end
@@ -367,9 +665,10 @@ end
 FTK:RegisterModule({
   id = MODULE_ID,
   name = "Campfire Alert",
-  description = "Opt-in. When Campfire Nearby is confirmed on you, posts one local line and can play a sound. It does not mark the map: that buff does not carry the camp's location.",
+  description = "Opt-in. When Campfire Nearby is confirmed on you, posts one local line and can play a sound. Hovering a camp item adds its buff type. It does not mark the map: that buff does not carry the camp's location.",
   defaultEnabled = false,
   onEnable = function()
+    InstallTips()
     Start()
   end,
   onDisable = function()
@@ -377,3 +676,5 @@ FTK:RegisterModule({
   end,
   BuildOptions = BuildOptions,
 })
+
+InstallTips()
