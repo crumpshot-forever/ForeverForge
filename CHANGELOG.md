@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+- **Campfire Alert.** Opt-in. When Campfire Nearby is confirmed on you, one local chat line and an optional sound. No map marker: that buff does not include the camp's coordinates. Leaving the buff for 10 seconds arms the alert again, and a new entry waits 60 seconds from the last alert. Hovering a camp item adds that item's buff type to its tooltip.
+
+## 1.6.3
+
+- **Blocked-action messages.** Blocked actions from other addons, such as FollowTheArrow, are no longer reported as Forever Forge. Forever Forge still reports its own blocked calls, at most once every 5 seconds for the same line.
+
+## 1.6.2
+
+- **Talent Profiles.** Saved build plates now show on the right side of the open talent window and hide when the window closes, including after a spec change or a short wait.
+
 ## 1.6.1
 
 - **Cat Bar.** No longer shows an "Unknown macro option: combopoints" message. Combo points still show in Cat Form.

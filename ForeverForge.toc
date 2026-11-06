@@ -31,6 +31,7 @@ Modules\QuestAuto.lua
 Modules\SocialConvenience.lua
 Modules\TalentProfiles.lua
 Modules\GroupFinder.lua
+Modules\CampfireAlert.lua
 
 # Druid tools. Other classes load these files and then do nothing.
 Druid\DruidBars.lua
