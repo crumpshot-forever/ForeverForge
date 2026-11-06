@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- **Campfire Alert.** Opt-in. When Campfire Nearby is confirmed on you, one local chat line and an optional sound. No map marker: that buff does not include the camp's coordinates. Leaving the buff for 10 seconds arms the alert again, and a new entry waits 60 seconds from the last alert.
+
 ## 1.6.3
 
 - **Blocked-action messages.** Blocked actions from other addons, such as FollowTheArrow, are no longer reported as Forever Forge. Forever Forge still reports its own blocked calls, at most once every 5 seconds for the same line.
