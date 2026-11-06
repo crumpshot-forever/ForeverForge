@@ -1,8 +1,10 @@
 # Changelog
 
-## Unreleased
+## 1.7.0
 
 - **Campfire Alert.** Opt-in. When Campfire Nearby is confirmed on you, one local chat line and an optional sound. No map marker: that buff does not include the camp's coordinates. Leaving the buff for 10 seconds arms the alert again, and a new entry waits 60 seconds from the last alert. Hovering a camp item adds that item's buff type to its tooltip.
+
+- **Group Finder.** Role filters and optional auto-refresh every 15 seconds while the Looking For Group window is open.
 
 ## 1.6.3
 
