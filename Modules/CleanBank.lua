@@ -1,6 +1,6 @@
 --[[
   Clean Bank. Groups the open bank with the same sections as Clean Bags:
-  Quest Items, Reagents, Crafting, equipment sets, Gear, General, Junk, Empty.
+  Quest Items, Munitions, Reagents, Crafting, equipment sets, Gear, General, Junk, Empty.
 
   Uses the bank's own item buttons. A secret item id is left in General.
 ]]
@@ -22,6 +22,7 @@ local BOTTOM_PAD = 100
 local SECTIONS = {
   { id = "quest", title = "Quest Items" },
   { id = "consumable", title = "Consumables" },
+  { id = "munitions", title = "Munitions" },
   { id = "junk", title = "Junk" },
   { id = "spellreagent", title = "Reagents" },
   { id = "reagent", title = "Crafting" },
@@ -214,6 +215,8 @@ local function Layout(frame, panel)
         title = "Quest Items"
       elseif category == "consumable" then
         title = "Consumables"
+      elseif category == "munitions" then
+        title = "Munitions"
       elseif category == "junk" then
         title = "Junk"
       elseif category == "spellreagent" then
@@ -238,7 +241,7 @@ local function Layout(frame, panel)
   end
 
   local ordered = {}
-  local prefix = { "quest", "consumable", "spellreagent", "reagent" }
+  local prefix = { "quest", "consumable", "munitions", "spellreagent", "reagent" }
   for index = 1, #prefix do
     local group = groups[prefix[index]]
     if group and #group.items > 0 then
@@ -459,7 +462,7 @@ FTK.CleanBankRefresh = ScheduleLayout
 FTK:RegisterModule({
   id = MODULE_ID,
   name = "Clean Bank",
-  description = "Groups the bank into Quest Items, Reagents, Crafting, equipment sets, Gear, General, Junk, and Empty.",
+  description = "Groups the bank into Quest Items, Munitions, Reagents, Crafting, equipment sets, Gear, General, Junk, and Empty.",
   defaultEnabled = true,
   onEnable = function()
     InstallHook()
