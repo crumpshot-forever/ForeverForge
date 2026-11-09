@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.7.1
+
+- **Clean Bags and Clean Bank.** Arrows, bullets, and quivers now sort into their own Munitions group instead of sitting in General. The group sits after Consumables, in the backpack and in the bank.
+
 ## 1.7.0
 
 - **Campfire Alert.** Opt-in. When Campfire Nearby is confirmed on you, one local chat line and an optional sound. No map marker: that buff does not include the camp's coordinates. Leaving the buff for 10 seconds arms the alert again, and a new entry waits 60 seconds from the last alert. Hovering a camp item adds that item's buff type to its tooltip.
