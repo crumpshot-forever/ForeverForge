@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.7.1
+## 1.8.0
 
 - **Clean Bags and Clean Bank.** Arrows, bullets, and quivers now sort into their own Munitions group instead of sitting in General. The group sits after Consumables, in the backpack and in the bank.
 
