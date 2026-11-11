@@ -6,6 +6,13 @@
   Only runs while the combined backpack is the bag UI.
   Item buttons stay Blizzard's buttons, so click, drag, and tooltips
   keep working. A secret item id is left in General.
+
+  Blizzard's combined grid stops at the fourth bag. The reagent bag
+  (the extra Forever slot, bag 5) is opened with it and its buttons
+  are grouped into the same window. The separate reagent window is
+  parked off screen while the backpack is open, and hidden when the
+  backpack closes. B only closes the combined frame, so this window
+  has to be closed with it.
 ]]
 
 local FTK = ForeverForge
@@ -23,6 +30,10 @@ local BOTTOM_PAD = 28
 
 local hooked = false
 local layingOut = false
+local restoring = false
+local openingReagent = false
+local closingReagent = false
+local reagentOpenTried = false
 local headerPool = {}
 local headerUsed = 0
 
@@ -86,6 +97,54 @@ local function CombinedFrame()
   local frame = _G.ContainerFrameCombinedBags
   if frame and frame.IsCombinedBagContainer and frame:IsCombinedBagContainer() then
     return frame
+  end
+  return nil
+end
+
+-- Forever's fifth bag slot. Retail's reagent bag uses this same id, and
+-- Blizzard's combined grid does not include it.
+local function ReagentBagId()
+  local id = Enum and Enum.BagIndex and Enum.BagIndex.ReagentBag
+  id = PlainNumber(id)
+  if id then
+    return id
+  end
+  return 5
+end
+
+local function ReagentSlotCount()
+  if not (C_Container and C_Container.GetContainerNumSlots) then
+    return 0
+  end
+  local ok, count = pcall(C_Container.GetContainerNumSlots, ReagentBagId())
+  count = ok and PlainNumber(count) or nil
+  if not count or count < 1 then
+    return 0
+  end
+  return count
+end
+
+local function ShownFrameForBag(bagId)
+  if not bagId then
+    return nil
+  end
+  if ContainerFrameUtil_GetShownFrameForID then
+    local ok, frame = pcall(ContainerFrameUtil_GetShownFrameForID, bagId)
+    if ok and frame then
+      return frame
+    end
+  end
+  local limit = PlainNumber(_G.NUM_CONTAINER_FRAMES) or 13
+  local index
+  for index = 1, limit do
+    local frame = _G["ContainerFrame" .. index]
+    if frame and frame.GetBagID and frame.IsShown and frame:IsShown() then
+      local ok, id = pcall(frame.GetBagID, frame)
+      id = ok and PlainNumber(id) or nil
+      if id == bagId then
+        return frame
+      end
+    end
   end
   return nil
 end
@@ -467,6 +526,108 @@ local function CollectButtons(frame)
   return buttons
 end
 
+local function ButtonsIncludeBag(buttons, bagId)
+  local index
+  for index = 1, #buttons do
+    local bag = ButtonBagSlot(buttons[index])
+    if bag == bagId then
+      return true
+    end
+  end
+  return false
+end
+
+local function ParkReagentFrame(reagent)
+  if not reagent or not reagent.ClearAllPoints or not reagent.SetPoint then
+    return
+  end
+  if reagent.EnableMouse then
+    reagent:EnableMouse(false)
+  end
+  reagent:ClearAllPoints()
+  reagent:SetPoint("TOPLEFT", UIParent, "TOPLEFT", -4000, 4000)
+end
+
+-- B hides the combined backpack and leaves every other open bag where
+-- the anchor pass puts it. The reagent frame was only opened so its
+-- buttons could move into the combined window, so close it too.
+local function DismissReagentFrame()
+  if closingReagent or openingReagent or restoring or layingOut then
+    return
+  end
+  if not FTK:IsEnabled(MODULE_ID) or not UsingCombinedBags() then
+    return
+  end
+  local reagentId = ReagentBagId()
+  local reagent = ShownFrameForBag(reagentId)
+  local combined = CombinedFrame()
+  if not reagent or reagent == combined then
+    return
+  end
+  closingReagent = true
+  if CloseBag then
+    pcall(CloseBag, reagentId)
+  elseif reagent.Hide then
+    reagent:Hide()
+  end
+  closingReagent = false
+end
+
+local function RestoreReagentFrame()
+  local reagent = ShownFrameForBag(ReagentBagId())
+  if not reagent then
+    return
+  end
+  local buttons = CollectButtons(reagent)
+  local index
+  for index = 1, #buttons do
+    local button = buttons[index]
+    if button.SetParent then
+      pcall(button.SetParent, button, reagent)
+    end
+  end
+  if reagent.EnableMouse then
+    reagent:EnableMouse(true)
+  end
+  if reagent.UpdateItemLayout then
+    pcall(reagent.UpdateItemLayout, reagent)
+  end
+end
+
+local function AttachReagentButtons(combined, buttons)
+  local reagentId = ReagentBagId()
+  if not reagentId or ButtonsIncludeBag(buttons, reagentId) then
+    local already = ShownFrameForBag(reagentId)
+    if already and already ~= combined then
+      ParkReagentFrame(already)
+    end
+    return
+  end
+  if ReagentSlotCount() < 1 then
+    return
+  end
+  local reagent = ShownFrameForBag(reagentId)
+  if not reagent and OpenBag and not openingReagent and not reagentOpenTried then
+    reagentOpenTried = true
+    openingReagent = true
+    pcall(OpenBag, reagentId)
+    openingReagent = false
+    reagent = ShownFrameForBag(reagentId)
+  end
+  if not reagent or reagent == combined then
+    return
+  end
+  local extra = CollectButtons(reagent)
+  local index
+  for index = 1, #extra do
+    local bag = ButtonBagSlot(extra[index])
+    if bag == reagentId then
+      buttons[#buttons + 1] = extra[index]
+    end
+  end
+  ParkReagentFrame(reagent)
+end
+
 local function AcquireHeader(parent)
   headerUsed = headerUsed + 1
   local header = headerPool[headerUsed]
@@ -521,6 +682,14 @@ local function ButtonSize(button)
 end
 
 local function Place(button, parent, x, y)
+  local bag = ButtonBagSlot(button)
+  local reagentId = ReagentBagId()
+  if bag and reagentId and bag == reagentId and button.SetParent and button.GetParent then
+    local ok, current = pcall(button.GetParent, button)
+    if ok and current ~= parent then
+      pcall(button.SetParent, button, parent)
+    end
+  end
   button:ClearAllPoints()
   button:SetPoint("TOPLEFT", parent, "TOPLEFT", x, y)
   button:Show()
@@ -533,12 +702,14 @@ local function Layout(frame)
   if not frame or not frame:IsShown() then
     return
   end
+  layingOut = true
   local buttons = CollectButtons(frame)
+  AttachReagentButtons(frame, buttons)
   if #buttons == 0 then
+    layingOut = false
     return
   end
 
-  layingOut = true
   headerUsed = 0
 
   local setByItem, setBySlot = EquipmentSetMaps()
@@ -739,26 +910,42 @@ local function HookBagOpen()
   end
   frame.ftkBagManagerShow = true
   frame:HookScript("OnShow", function()
+    reagentOpenTried = false
     ScheduleLayout()
+  end)
+  frame:HookScript("OnHide", function()
+    reagentOpenTried = false
+    DismissReagentFrame()
   end)
 end
 
 local function RestoreBlizzardLayout()
+  restoring = true
   local frame = CombinedFrame()
   if not frame then
+    RestoreReagentFrame()
+    if UpdateContainerFrameAnchors then
+      pcall(UpdateContainerFrameAnchors)
+    end
     HideUnusedHeaders()
     headerUsed = 0
     HideUnusedHeaders()
+    restoring = false
     return
   end
   headerUsed = 0
   HideUnusedHeaders()
+  RestoreReagentFrame()
   if frame.UpdateFrameSize then
     pcall(frame.UpdateFrameSize, frame)
   end
   if frame.UpdateItemLayout then
     pcall(frame.UpdateItemLayout, frame)
   end
+  if UpdateContainerFrameAnchors then
+    pcall(UpdateContainerFrameAnchors)
+  end
+  restoring = false
 end
 
 local function InstallHook()
@@ -766,7 +953,7 @@ local function InstallHook()
     return hooked
   end
   hooksecurefunc(ContainerFrameMixin, "UpdateItemLayout", function(self)
-    if layingOut or not FTK:IsEnabled(MODULE_ID) then
+    if layingOut or restoring or not FTK:IsEnabled(MODULE_ID) then
       return
     end
     if self and self.IsCombinedBagContainer and self:IsCombinedBagContainer() and UsingCombinedBags() then
@@ -778,8 +965,31 @@ local function InstallHook()
           end
         end)
       end
+      return
+    end
+    if UsingCombinedBags() and self and self.GetBagID then
+      local ok, id = pcall(self.GetBagID, self)
+      id = ok and PlainNumber(id) or nil
+      if id and id == ReagentBagId() then
+        ScheduleLayout()
+      end
     end
   end)
+  if UpdateContainerFrameAnchors then
+    hooksecurefunc("UpdateContainerFrameAnchors", function()
+      if layingOut or restoring or not FTK:IsEnabled(MODULE_ID) or not UsingCombinedBags() then
+        return
+      end
+      local combined = CombinedFrame()
+      if not combined or not combined:IsShown() then
+        return
+      end
+      local reagent = ShownFrameForBag(ReagentBagId())
+      if reagent and reagent ~= combined then
+        ParkReagentFrame(reagent)
+      end
+    end)
+  end
   HookBagOpen()
   if OpenAllBags then
     hooksecurefunc("OpenAllBags", ScheduleLayout)
@@ -821,7 +1031,7 @@ FTK.CleanBagsRefresh = ScheduleLayout
 FTK:RegisterModule({
   id = MODULE_ID,
   name = "Clean Bags",
-  description = "Groups the combined backpack into Quest Items, Munitions, Reagents, Crafting, equipment sets, Gear, General, Junk, and Empty.",
+  description = "Groups the combined backpack, including the reagent bag, into Quest Items, Munitions, Reagents, Crafting, equipment sets, Gear, General, Junk, and Empty.",
   defaultEnabled = true,
   onEnable = function()
     InstallHook()

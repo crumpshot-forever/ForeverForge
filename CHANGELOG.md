@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- **Clean Bags.** The reagent bag is included in the combined backpack. Its items are grouped with the rest. That bag's own window stays off screen while the backpack is open, and it closes when the backpack closes.
+
 ## 1.8.0
 
 - **Clean Bags and Clean Bank.** Arrows, bullets, and quivers now sort into their own Munitions group instead of sitting in General. The group sits after Consumables, in the backpack and in the bank.
