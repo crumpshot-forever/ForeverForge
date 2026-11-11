@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.8.1
 
 - **Clean Bags.** The reagent bag is included in the combined backpack. Its items are grouped with the rest. That bag's own window stays off screen while the backpack is open, and it closes when the backpack closes.
 
