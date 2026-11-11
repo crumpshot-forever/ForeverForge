@@ -10,7 +10,9 @@
   Blizzard's combined grid stops at the fourth bag. The reagent bag
   (the extra Forever slot, bag 5) is opened with it and its buttons
   are grouped into the same window. The separate reagent window is
-  parked off screen.
+  parked off screen while the backpack is open, and hidden when the
+  backpack closes. B only closes the combined frame, so this window
+  has to be closed with it.
 ]]
 
 local FTK = ForeverForge
@@ -30,6 +32,7 @@ local hooked = false
 local layingOut = false
 local restoring = false
 local openingReagent = false
+local closingReagent = false
 local reagentOpenTried = false
 local headerPool = {}
 local headerUsed = 0
@@ -529,6 +532,31 @@ local function ParkReagentFrame(reagent)
   reagent:SetPoint("TOPLEFT", UIParent, "TOPLEFT", -4000, 4000)
 end
 
+-- B hides the combined backpack and leaves every other open bag where
+-- the anchor pass puts it. The reagent frame was only opened so its
+-- buttons could move into the combined window, so close it too.
+local function DismissReagentFrame()
+  if closingReagent or openingReagent or restoring or layingOut then
+    return
+  end
+  if not FTK:IsEnabled(MODULE_ID) or not UsingCombinedBags() then
+    return
+  end
+  local reagentId = ReagentBagId()
+  local reagent = ShownFrameForBag(reagentId)
+  local combined = CombinedFrame()
+  if not reagent or reagent == combined then
+    return
+  end
+  closingReagent = true
+  if CloseBag then
+    pcall(CloseBag, reagentId)
+  elseif reagent.Hide then
+    reagent:Hide()
+  end
+  closingReagent = false
+end
+
 local function RestoreReagentFrame()
   local reagent = ShownFrameForBag(ReagentBagId())
   if not reagent then
@@ -869,6 +897,7 @@ local function HookBagOpen()
   end)
   frame:HookScript("OnHide", function()
     reagentOpenTried = false
+    DismissReagentFrame()
   end)
 end
 

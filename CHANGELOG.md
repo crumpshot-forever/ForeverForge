@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- **Clean Bags.** The reagent bag is included in the combined backpack. Its items are grouped with the rest, and its separate window is not left on screen.
+- **Clean Bags.** The reagent bag is included in the combined backpack. Its items are grouped with the rest. That bag's own window stays off screen while the backpack is open, and it closes when the backpack closes.
 
 ## 1.7.0
 
