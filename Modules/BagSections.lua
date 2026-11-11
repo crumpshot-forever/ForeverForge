@@ -1,6 +1,6 @@
 --[[
   Splits the combined backpack into labeled groups:
-  Quest Items, Reagents, Crafting, one section per saved equipment set,
+  Quest Items, Munitions, Reagents, Crafting, one section per saved equipment set,
   Gear, General, Junk (poor quality), then Empty.
 
   Only runs while the combined backpack is the bag UI.
@@ -40,6 +40,7 @@ local headerUsed = 0
 local SECTIONS = {
   { id = "quest", title = "Quest Items" },
   { id = "consumable", title = "Consumables" },
+  { id = "munitions", title = "Munitions" },
   { id = "junk", title = "Junk" },
   { id = "spellreagent", title = "Reagents" },
   { id = "reagent", title = "Crafting" },
@@ -198,6 +199,18 @@ local function IsConsumable(itemID)
     return true
   end
   return ItemTypeName(itemID) == "Consumable"
+end
+
+local function IsMunition(itemID)
+  local classID = ItemClass(itemID)
+  local itemClass = Enum and Enum.ItemClass
+  local projectile = (itemClass and itemClass.Projectile) or 6
+  local quiver = (itemClass and itemClass.Quiver) or 11
+  if classID == projectile or classID == quiver then
+    return true
+  end
+  local itemType = ItemTypeName(itemID)
+  return itemType == "Projectile" or itemType == "Quiver"
 end
 
 local function EquipLoc(itemID)
@@ -466,6 +479,9 @@ local function CategoryFor(item, bag, slot, setByItem, setBySlot)
   if item.quality ~= nil and (item.quality == 0 or (poor ~= nil and item.quality == poor)) then
     return "junk"
   end
+  if IsMunition(item.itemID) then
+    return "munitions"
+  end
   local material = MaterialKind(item.itemID)
   if material then
     return material
@@ -727,6 +743,8 @@ local function Layout(frame)
         title = "Quest Items"
       elseif category == "consumable" then
         title = "Consumables"
+      elseif category == "munitions" then
+        title = "Munitions"
       elseif category == "junk" then
         title = "Junk"
       elseif category == "spellreagent" then
@@ -751,7 +769,7 @@ local function Layout(frame)
   end
 
   local ordered = {}
-  local prefix = { "quest", "consumable", "spellreagent", "reagent" }
+  local prefix = { "quest", "consumable", "munitions", "spellreagent", "reagent" }
   for index = 1, #prefix do
     local group = groups[prefix[index]]
     if group and #group.items > 0 then
@@ -1013,7 +1031,7 @@ FTK.CleanBagsRefresh = ScheduleLayout
 FTK:RegisterModule({
   id = MODULE_ID,
   name = "Clean Bags",
-  description = "Groups the combined backpack, including the reagent bag, into Quest Items, Reagents, Crafting, equipment sets, Gear, General, Junk, and Empty.",
+  description = "Groups the combined backpack, including the reagent bag, into Quest Items, Munitions, Reagents, Crafting, equipment sets, Gear, General, Junk, and Empty.",
   defaultEnabled = true,
   onEnable = function()
     InstallHook()

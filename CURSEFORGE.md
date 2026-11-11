@@ -16,7 +16,7 @@ To hide the anvil, untick **Minimap icon** in the menu header or type `/ff minim
 
 ![Combined backpack sorted into labeled sections](https://crumpshot-forever.github.io/ForeverForge/images/clean-bags.png)
 
-Open your backpack and it is already sorted. Quest items, food and potions, reagents, crafting materials, saved equipment sets, gear, everyday items, junk, and empty slots each get their own labeled group, with a count on the label.
+Open your backpack and it is already sorted. Quest items, food and potions, arrows and bullets, reagents, crafting materials, saved equipment sets, gear, everyday items, junk, and empty slots each get their own labeled group, with a count on the label.
 
 ## Clean Bank
 
