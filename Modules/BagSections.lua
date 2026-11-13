@@ -16,6 +16,9 @@
 
   Those item buttons are created from addon code, which taints a
   right-click use. A secure button over each one performs that use.
+
+  The combined frame and its item buttons are protected. Their points
+  and size are left alone during combat, then applied once combat ends.
 ]]
 
 local FTK = ForeverForge
@@ -37,6 +40,8 @@ local restoring = false
 local openingReagent = false
 local closingReagent = false
 local reagentOpenTried = false
+local layoutAfterCombat = false
+local DeferLayout
 local headerPool = {}
 local headerUsed = 0
 
@@ -544,6 +549,9 @@ local function ParkReagentFrame(reagent)
   if not reagent or not reagent.ClearAllPoints or not reagent.SetPoint then
     return
   end
+  if DeferLayout and DeferLayout(reagent) then
+    return
+  end
   if reagent.EnableMouse then
     reagent:EnableMouse(false)
   end
@@ -698,6 +706,16 @@ local function LockedDown()
   return value == true
 end
 
+-- The bag frame and its item buttons are protected. Moving them during
+-- combat is blocked, so the grouped layout waits until combat ends.
+DeferLayout = function()
+  if not LockedDown() then
+    return false
+  end
+  layoutAfterCombat = true
+  return true
+end
+
 local MODIFIED_PREFIX = {
   "shift-",
   "ctrl-",
@@ -774,6 +792,9 @@ function HideReagentUse(button)
 end
 
 local function Place(button, parent, x, y)
+  if DeferLayout(button) then
+    return
+  end
   local bag, slot = ButtonBagSlot(button)
   local reagentId = ReagentBagId()
   local reagentButton = bag and reagentId and bag == reagentId
@@ -798,6 +819,9 @@ local function Layout(frame)
     return
   end
   if not frame or not frame:IsShown() then
+    return
+  end
+  if DeferLayout(frame) then
     return
   end
   layingOut = true
@@ -978,7 +1002,9 @@ local function Layout(frame)
   if height < 160 then
     height = 160
   end
-  frame:SetHeight(height)
+  if not DeferLayout(frame) then
+    frame:SetHeight(height)
+  end
   layingOut = false
 end
 
@@ -1106,6 +1132,13 @@ events:SetScript("OnEvent", function(_, event)
   end
   InstallHook()
   HookBagOpen()
+  if event == "PLAYER_REGEN_ENABLED" then
+    if layoutAfterCombat then
+      layoutAfterCombat = false
+      ScheduleLayout()
+    end
+    return
+  end
   if event == "USE_COMBINED_BAGS_CHANGED" and not UsingCombinedBags() then
     RestoreBlizzardLayout()
     return
@@ -1138,6 +1171,7 @@ FTK:RegisterModule({
     events:RegisterEvent("EQUIPMENT_SETS_CHANGED")
     events:RegisterEvent("USE_COMBINED_BAGS_CHANGED")
     events:RegisterEvent("PLAYER_ENTERING_WORLD")
+    events:RegisterEvent("PLAYER_REGEN_ENABLED")
     RequestLayout()
   end,
   onDisable = function()
