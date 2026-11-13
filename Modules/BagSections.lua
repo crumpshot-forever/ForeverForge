@@ -13,6 +13,9 @@
   parked off screen while the backpack is open, and hidden when the
   backpack closes. B only closes the combined frame, so this window
   has to be closed with it.
+
+  Those item buttons are created from addon code, which taints a
+  right-click use. A secure button over each one performs that use.
 ]]
 
 local FTK = ForeverForge
@@ -573,6 +576,8 @@ local function DismissReagentFrame()
   closingReagent = false
 end
 
+local HideReagentUse
+
 local function RestoreReagentFrame()
   local reagent = ShownFrameForBag(ReagentBagId())
   if not reagent then
@@ -582,6 +587,7 @@ local function RestoreReagentFrame()
   local index
   for index = 1, #buttons do
     local button = buttons[index]
+    HideReagentUse(button)
     if button.SetParent then
       pcall(button.SetParent, button, reagent)
     end
@@ -681,10 +687,97 @@ local function ButtonSize(button)
   return width, height
 end
 
+local function LockedDown()
+  if type(InCombatLockdown) ~= "function" then
+    return false
+  end
+  local ok, value = pcall(InCombatLockdown)
+  if not ok or IsSecret(value) then
+    return true
+  end
+  return value == true
+end
+
+local MODIFIED_PREFIX = {
+  "shift-",
+  "ctrl-",
+  "alt-",
+  "ctrl-shift-",
+  "alt-shift-",
+  "alt-ctrl-",
+  "alt-ctrl-shift-",
+}
+
+-- Right-click on a reagent slot has to stay secure. The Blizzard button
+-- was opened from this addon, so its own UseContainerItem call is blocked.
+-- An unmodified right-click uses the item. A modified one is handed back
+-- to the Blizzard button for link and dress-up clicks.
+local function ArmReagentUse(button, bag, slot)
+  if LockedDown() then
+    return
+  end
+  local overlay = button.ftkUseOverlay
+  if not overlay then
+    overlay = CreateFrame("Button", nil, UIParent, "SecureActionButtonTemplate")
+    if not overlay then
+      return
+    end
+    button.ftkUseOverlay = overlay
+    overlay:RegisterForClicks("RightButtonUp")
+    overlay:SetAttribute("type2", "item")
+    local index
+    for index = 1, #MODIFIED_PREFIX do
+      local prefix = MODIFIED_PREFIX[index]
+      overlay:SetAttribute(prefix .. "type2", "click")
+      overlay:SetAttribute(prefix .. "clickbutton2", button)
+    end
+    if overlay.SetPassThroughButtons then
+      overlay:SetPassThroughButtons("LeftButton")
+    end
+    if overlay.SetPropagateMouseMotion then
+      overlay:SetPropagateMouseMotion(true)
+    end
+    if button.HookScript and not button.ftkUseOverlayHook then
+      button.ftkUseOverlayHook = true
+      button:HookScript("OnHide", function(self)
+        local use = self.ftkUseOverlay
+        if use then
+          use:Hide()
+        end
+      end)
+    end
+  end
+  overlay:SetAttribute("item2", bag .. " " .. slot)
+  local strata = "MEDIUM"
+  if button.GetFrameStrata then
+    local ok, value = pcall(button.GetFrameStrata, button)
+    if ok and type(value) == "string" and value ~= "" then
+      strata = value
+    end
+  end
+  overlay:SetFrameStrata(strata)
+  local level = 1
+  if button.GetFrameLevel then
+    level = PlainNumber(button:GetFrameLevel()) or 1
+  end
+  overlay:SetFrameLevel(level + 20)
+  overlay:ClearAllPoints()
+  overlay:SetAllPoints(button)
+  overlay:Show()
+end
+
+function HideReagentUse(button)
+  local overlay = button and button.ftkUseOverlay
+  if overlay then
+    overlay:Hide()
+  end
+end
+
 local function Place(button, parent, x, y)
-  local bag = ButtonBagSlot(button)
+  local bag, slot = ButtonBagSlot(button)
   local reagentId = ReagentBagId()
-  if bag and reagentId and bag == reagentId and button.SetParent and button.GetParent then
+  local reagentButton = bag and reagentId and bag == reagentId
+  if reagentButton and button.SetParent and button.GetParent then
     local ok, current = pcall(button.GetParent, button)
     if ok and current ~= parent then
       pcall(button.SetParent, button, parent)
@@ -693,6 +786,11 @@ local function Place(button, parent, x, y)
   button:ClearAllPoints()
   button:SetPoint("TOPLEFT", parent, "TOPLEFT", x, y)
   button:Show()
+  if reagentButton and slot then
+    pcall(ArmReagentUse, button, bag, slot)
+  else
+    HideReagentUse(button)
+  end
 end
 
 local function Layout(frame)
