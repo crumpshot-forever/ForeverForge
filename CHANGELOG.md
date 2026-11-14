@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.8.3
 
 - **Clean Bags.** Opening the backpack with the bag key no longer prints a blocked move for each item. Closing it no longer prints a blocked hide. The groups are applied once that key press has finished.
 
