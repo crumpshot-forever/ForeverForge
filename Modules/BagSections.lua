@@ -17,8 +17,10 @@
   Those item buttons are created from addon code, which taints a
   right-click use. A secure button over each one performs that use.
 
-  The combined frame and its item buttons are protected. Their points
-  and size are left alone during combat, then applied once combat ends.
+  The combined frame and its item buttons are protected. Moving them
+  during combat waits until combat ends. The bag key is a secure press,
+  so those moves also wait until the press has finished. The use button
+  over a reagent item is hidden the same way, after the backpack closes.
 ]]
 
 local FTK = ForeverForge
@@ -41,6 +43,9 @@ local openingReagent = false
 local closingReagent = false
 local reagentOpenTried = false
 local layoutAfterCombat = false
+local layoutQueued = false
+local layoutFollowUp = false
+local overlayHideAfterCombat = {}
 local DeferLayout
 local headerPool = {}
 local headerUsed = 0
@@ -726,6 +731,31 @@ local MODIFIED_PREFIX = {
   "alt-ctrl-shift-",
 }
 
+local function QueueOverlayHide(overlay)
+  if not overlay then
+    return
+  end
+  if LockedDown() then
+    overlayHideAfterCombat[#overlayHideAfterCombat + 1] = overlay
+    return
+  end
+  overlay:Hide()
+end
+
+local function HideQueuedOverlays()
+  if LockedDown() then
+    return
+  end
+  local index
+  for index = 1, #overlayHideAfterCombat do
+    local overlay = overlayHideAfterCombat[index]
+    overlayHideAfterCombat[index] = nil
+    if overlay and overlay.Hide then
+      overlay:Hide()
+    end
+  end
+end
+
 -- Right-click on a reagent slot has to stay secure. The Blizzard button
 -- was opened from this addon, so its own UseContainerItem call is blocked.
 -- An unmodified right-click uses the item. A modified one is handed back
@@ -759,9 +789,17 @@ local function ArmReagentUse(button, bag, slot)
       button.ftkUseOverlayHook = true
       button:HookScript("OnHide", function(self)
         local use = self.ftkUseOverlay
-        if use then
-          use:Hide()
+        if not use or not (C_Timer and C_Timer.After) then
+          return
         end
+        -- B hides this button from the secure key press. Hide the
+        -- overlay on the next frame, off that press.
+        C_Timer.After(0, function()
+          if self:IsShown() then
+            return
+          end
+          QueueOverlayHide(use)
+        end)
       end)
     end
   end
@@ -785,10 +823,7 @@ local function ArmReagentUse(button, bag, slot)
 end
 
 function HideReagentUse(button)
-  local overlay = button and button.ftkUseOverlay
-  if overlay then
-    overlay:Hide()
-  end
+  QueueOverlayHide(button and button.ftkUseOverlay)
 end
 
 local function Place(button, parent, x, y)
@@ -1018,13 +1053,35 @@ local function RequestLayout()
   end
 end
 
+-- ToggleBackpack and the bag frame's own layout run inside the secure
+-- key press. Moving buttons there is blocked even out of combat, so the
+-- grouped layout always waits until that press has returned.
 local function ScheduleLayout()
-  RequestLayout()
-  if not (C_Timer and C_Timer.After) then
+  if not FTK:IsEnabled(MODULE_ID) then
     return
   end
-  C_Timer.After(0, RequestLayout)
-  C_Timer.After(0.1, RequestLayout)
+  if not (C_Timer and C_Timer.After) then
+    if LockedDown() then
+      layoutAfterCombat = true
+    else
+      RequestLayout()
+    end
+    return
+  end
+  if not layoutQueued then
+    layoutQueued = true
+    C_Timer.After(0, function()
+      layoutQueued = false
+      RequestLayout()
+    end)
+  end
+  if not layoutFollowUp then
+    layoutFollowUp = true
+    C_Timer.After(0.1, function()
+      layoutFollowUp = false
+      RequestLayout()
+    end)
+  end
 end
 
 local function HookBagOpen()
@@ -1081,14 +1138,7 @@ local function InstallHook()
       return
     end
     if self and self.IsCombinedBagContainer and self:IsCombinedBagContainer() and UsingCombinedBags() then
-      Layout(self)
-      if C_Timer and C_Timer.After then
-        C_Timer.After(0, function()
-          if self:IsShown() then
-            Layout(self)
-          end
-        end)
-      end
+      ScheduleLayout()
       return
     end
     if UsingCombinedBags() and self and self.GetBagID then
@@ -1110,7 +1160,15 @@ local function InstallHook()
       end
       local reagent = ShownFrameForBag(ReagentBagId())
       if reagent and reagent ~= combined then
-        ParkReagentFrame(reagent)
+        if C_Timer and C_Timer.After then
+          C_Timer.After(0, function()
+            if combined:IsShown() and ShownFrameForBag(ReagentBagId()) == reagent then
+              ParkReagentFrame(reagent)
+            end
+          end)
+        else
+          ParkReagentFrame(reagent)
+        end
       end
     end)
   end
@@ -1133,6 +1191,7 @@ events:SetScript("OnEvent", function(_, event)
   InstallHook()
   HookBagOpen()
   if event == "PLAYER_REGEN_ENABLED" then
+    HideQueuedOverlays()
     if layoutAfterCombat then
       layoutAfterCombat = false
       ScheduleLayout()
