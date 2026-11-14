@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.8.2
 
 - **Clean Bags.** Right-clicking an item from the reagent bag uses it, instead of a blocked UseContainerItem action.
 - **Clean Bags.** The backpack is no longer rearranged during combat. That was blocking moves on the protected bag buttons. The groups are applied when combat ends.
