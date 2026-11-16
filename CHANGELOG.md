@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.8.4
 
 - **Clean Bags.** In combat the backpack stays Blizzard's own bag. Group labels and the reagent buttons hide for the fight, and the groups come back when combat ends. The bag key is no longer overridden. Reagent slots are still grouped out of combat on this addon's own buttons, so opening bags does not build Blizzard's separate reagent window.
 
