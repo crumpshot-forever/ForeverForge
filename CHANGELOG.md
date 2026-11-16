@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- **Clean Bags.** In combat the backpack stays Blizzard's own bag. Group labels and the reagent buttons hide for the fight, and the groups come back when combat ends. The bag key is no longer overridden. Reagent slots are still grouped out of combat on this addon's own buttons, so opening bags does not build Blizzard's separate reagent window.
+
 ## 1.8.3
 
 - **Clean Bags.** Opening the backpack with the bag key no longer prints a blocked move for each item. Closing it no longer prints a blocked hide. The groups are applied once that key press has finished.
