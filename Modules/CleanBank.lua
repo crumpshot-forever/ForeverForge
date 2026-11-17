@@ -6,7 +6,10 @@
 
   Uses the bank's own item buttons. A secret item id is left in General.
   Alt+right-click on an item opens the own-category menu, right-click on
-  a section label the move menu (BagCategoryMenu.lua).
+  a section label the move menu (BagCategoryMenu.lua). Small sections
+  share a row when they fit (BagSectionFlow.lua). A grip in the bottom
+  right corner sets the window size, and items beyond the window height
+  scroll (BagWindow.lua).
 ]]
 
 local FTK = ForeverForge
@@ -18,13 +21,23 @@ local Rules = FTK.CleanBagRules
 -- The player's own categories: storage and the Alt+right-click menu.
 local Categories = FTK.BagCategoryStore
 local CategoryMenu = FTK.BagCategoryMenu
+-- Sections side by side, and the scrolling, resizable window.
+local Flow = FTK.BagSectionFlow
+local BagWindow = FTK.BagWindow
 local MODULE_ID = "CleanBank"
 local ITEM_GAP_X = 5
 local ITEM_GAP_Y = 5
+local ITEM_LEFT = 12
 local HEADER_H = 20
+local HEADER_GAP = 4
 local SECTION_GAP = 8
+local BLOCK_GAP = 12
 local TOP_OFFSET = 40
 local BOTTOM_PAD = 100
+local PANEL_MARGIN = 24
+local MIN_COLUMNS = 8
+local MAX_COLUMNS = 20
+local MIN_PANEL_HEIGHT = TOP_OFFSET + BOTTOM_PAD + HEADER_H + HEADER_GAP + 37
 
 local SECTIONS = {
   { id = "quest", title = "Quest Items" },
@@ -43,6 +56,13 @@ local layingOut = false
 local warned = false
 local headerPool = {}
 local headerUsed = 0
+-- Scroll and size of the bank window (BagWindow.lua), the frame that
+-- carries its widgets, and the heights that show every item, used when
+-- items are revealed for combat.
+local bankView
+local bankChrome
+local revealPanelHeight
+local revealChrome = 0
 
 local function BankPanel()
   local frame = _G.BankFrame
@@ -178,6 +198,35 @@ local function Place(button, parent, x, y)
   button:Show()
 end
 
+-- Frame for the bank's grip and scroll bar, above the bank's item buttons.
+local function BankChrome(panel)
+  if not bankChrome then
+    bankChrome = CreateFrame("Frame", nil, panel)
+    bankChrome:SetAllPoints(panel)
+    bankChrome:EnableMouse(false)
+  end
+  local level = Rules.PlainNumber(panel:GetFrameLevel()) or 1
+  bankChrome:SetFrameLevel(level + 40)
+  bankChrome:Show()
+  return bankChrome
+end
+
+-- Combat lockdown starts after PLAYER_REGEN_DISABLED. From that event,
+-- every item goes back to its unscrolled place and shows.
+local function RevealScrolledItems()
+  local frame, panel = BankPanel()
+  if not frame or not panel or not bankView or not revealPanelHeight then
+    return
+  end
+  local revealed = bankView:Reveal(function(button, x, top)
+    Place(button, panel, x, -top)
+  end)
+  if revealed then
+    panel:SetHeight(revealPanelHeight)
+    frame:SetHeight(revealPanelHeight + revealChrome)
+  end
+end
+
 local function Layout(frame, panel)
   if layingOut or not FTK:IsEnabled(MODULE_ID) or not frame or not panel or not panel:IsShown() then
     return
@@ -191,6 +240,8 @@ local function Layout(frame, panel)
   if not panel.ftkBaseHeight then
     panel.ftkBaseHeight = Rules.PlainNumber(panel:GetHeight())
     frame.ftkBaseHeight = Rules.PlainNumber(frame:GetHeight())
+    panel.ftkBaseWidth = Rules.PlainNumber(panel:GetWidth())
+    frame.ftkBaseWidth = Rules.PlainNumber(frame:GetWidth())
   end
 
   local setByItem, setBySlot = Rules.EquipmentSetMaps()
@@ -311,22 +362,54 @@ local function Layout(frame, panel)
   end
 
   local buttonWidth, buttonHeight = ButtonSize(buttons[1])
-  local panelWidth = Rules.PlainNumber(panel:GetWidth()) or 400
-  local columns = math.floor((panelWidth - 24) / (buttonWidth + ITEM_GAP_X))
-  if columns < 8 then
-    columns = 8
+  local metrics = {
+    columns = MIN_COLUMNS,
+    buttonWidth = buttonWidth,
+    buttonHeight = buttonHeight,
+    gapX = ITEM_GAP_X,
+    gapY = ITEM_GAP_Y,
+    headerHeight = HEADER_H,
+    headerGap = HEADER_GAP,
+    rowGap = SECTION_GAP,
+    blockGap = BLOCK_GAP,
+  }
+  -- The frame parts around the panel, from the sizes Blizzard gave both.
+  local chromeHeight = 0
+  if frame.ftkBaseHeight and panel.ftkBaseHeight then
+    chromeHeight = frame.ftkBaseHeight - panel.ftkBaseHeight
   end
-  if columns > 16 then
-    columns = 16
+  if chromeHeight < 0 or chromeHeight > 180 then
+    chromeHeight = 36
   end
-  local gridWidth = (columns * buttonWidth) + ((columns - 1) * ITEM_GAP_X)
-  local cursor = TOP_OFFSET
+  local chromeWidth = 0
+  if frame.ftkBaseWidth and panel.ftkBaseWidth then
+    chromeWidth = frame.ftkBaseWidth - panel.ftkBaseWidth
+  end
+  if chromeWidth < 0 or chromeWidth > 180 then
+    chromeWidth = 0
+  end
+  local savedWidth, savedHeight = bankView:SavedSize()
+  if savedWidth then
+    metrics.columns = Flow.ColumnsForWidth(savedWidth - chromeWidth, PANEL_MARGIN, metrics, MIN_COLUMNS, MAX_COLUMNS)
+  else
+    local panelWidth = panel.ftkBaseWidth or Rules.PlainNumber(panel:GetWidth()) or 400
+    local columns = math.floor((panelWidth - PANEL_MARGIN) / (buttonWidth + ITEM_GAP_X))
+    if columns < MIN_COLUMNS then
+      columns = MIN_COLUMNS
+    end
+    if columns > 16 then
+      columns = 16
+    end
+    metrics.columns = columns
+  end
+  local gridWidth = Flow.GridWidth(metrics.columns, metrics)
 
+  -- Labels first: a label can make its section wider than its items.
+  local sections = {}
+  local headers = {}
   for index = 1, #ordered do
     local group = ordered[index]
     local header = AcquireHeader(panel)
-    header:ClearAllPoints()
-    header:SetPoint("TOPLEFT", panel, "TOPLEFT", 12, -cursor)
     local count = #group.items
     if count == 0 then
       count = #group.empties
@@ -346,14 +429,12 @@ local function Layout(frame, panel)
     if headerWidth > half then
       headerWidth = half
     end
-    header:SetWidth(headerWidth)
     if FTK.QuickDrop and FTK.QuickDrop.Attach then
       FTK.QuickDrop:Attach(header, group.items, "withdraw", group.title, function(button)
         return ButtonBagSlot(button, panel)
       end)
     end
     CategoryMenu:AttachHeader(header, MODULE_ID, group.id, group.title, orderedIDs)
-    cursor = cursor + HEADER_H + 4
 
     local placed = {}
     local itemIndex
@@ -363,34 +444,69 @@ local function Layout(frame, panel)
     for itemIndex = 1, #group.empties do
       placed[#placed + 1] = group.empties[itemIndex]
     end
-    for itemIndex = 1, #placed do
-      local column = (itemIndex - 1) % columns
-      local row = math.floor((itemIndex - 1) / columns)
-      local x = 12 + (column * (buttonWidth + ITEM_GAP_X))
-      local y = -(cursor + (row * (buttonHeight + ITEM_GAP_Y)))
-      Place(placed[itemIndex], panel, x, y)
+    headers[index] = header
+    sections[index] = { count = #placed, headerWidth = headerWidth, buttons = placed }
+  end
+
+  -- The panel is as tall as its content (at least Blizzard's height), at
+  -- most the saved window height and the room on screen; the rest scrolls.
+  local blocks, contentHeight = Flow.Arrange(sections, metrics)
+  local fullHeight = TOP_OFFSET + contentHeight + SECTION_GAP + BOTTOM_PAD
+  if panel.ftkBaseHeight and fullHeight < panel.ftkBaseHeight then
+    fullHeight = panel.ftkBaseHeight
+  end
+  local height = fullHeight
+  if savedHeight and savedHeight - chromeHeight < height then
+    height = savedHeight - chromeHeight
+  end
+  local available = bankView:AvailableHeight(frame)
+  if available and available - chromeHeight < height then
+    height = available - chromeHeight
+  end
+  if height < MIN_PANEL_HEIGHT then
+    height = MIN_PANEL_HEIGHT
+  end
+  bankView:Begin(BankChrome(panel), frame, panel, TOP_OFFSET, height - TOP_OFFSET - BOTTOM_PAD,
+    contentHeight + SECTION_GAP, buttonHeight + ITEM_GAP_Y)
+
+  for index = 1, #ordered do
+    local block = blocks[index]
+    local header = headers[index]
+    local section = sections[index]
+    local headerTop = bankView:Locate(block.y, HEADER_H)
+    header:ClearAllPoints()
+    if headerTop then
+      header:SetPoint("TOPLEFT", panel, "TOPLEFT", ITEM_LEFT + block.x, -headerTop)
+      header:SetWidth(math.min(section.headerWidth, block.width))
+    else
+      header:Hide()
     end
-    local rows = math.ceil(#placed / columns)
-    if rows < 1 then
-      rows = 1
+    for itemIndex = 1, #section.buttons do
+      local button = section.buttons[itemIndex]
+      local x, y = Flow.ItemOffset(block, itemIndex, metrics)
+      local top = bankView:Track(button, ITEM_LEFT + x, y, buttonHeight)
+      if top then
+        Place(button, panel, ITEM_LEFT + x, -top)
+      else
+        button:Hide()
+      end
     end
-    cursor = cursor + (rows * buttonHeight) + ((rows - 1) * ITEM_GAP_Y) + SECTION_GAP
   end
 
   HideUnusedHeaders()
-  local height = cursor + BOTTOM_PAD
-  if panel.ftkBaseHeight and height < panel.ftkBaseHeight then
-    height = panel.ftkBaseHeight
-  end
+  revealPanelHeight = fullHeight
+  revealChrome = chromeHeight
   panel:SetHeight(height)
-  local chrome = 0
-  if frame.ftkBaseHeight and panel.ftkBaseHeight then
-    chrome = frame.ftkBaseHeight - panel.ftkBaseHeight
+  frame:SetHeight(height + chromeHeight)
+  local barRoom = bankView:BarRoom()
+  if savedWidth or barRoom > 0 then
+    local width = gridWidth + PANEL_MARGIN + barRoom
+    panel:SetWidth(width)
+    frame:SetWidth(width + chromeWidth)
+  elseif panel.ftkBaseWidth and frame.ftkBaseWidth then
+    panel:SetWidth(panel.ftkBaseWidth)
+    frame:SetWidth(frame.ftkBaseWidth)
   end
-  if chrome < 0 or chrome > 180 then
-    chrome = 36
-  end
-  frame:SetHeight(height + chrome)
   if UpdateUIPanelPositions then
     pcall(UpdateUIPanelPositions, frame)
   end
@@ -425,6 +541,12 @@ end
 local function RestoreBank()
   headerUsed = 0
   HideUnusedHeaders()
+  if bankView then
+    bankView:Reveal(function(button)
+      button:Show()
+    end)
+    bankView:HideWidgets()
+  end
   local frame, panel = BankPanel()
   if panel and panel.RefreshBankPanel then
     pcall(panel.RefreshBankPanel, panel)
@@ -434,6 +556,12 @@ local function RestoreBank()
   end
   if panel and panel.ftkBaseHeight then
     panel:SetHeight(panel.ftkBaseHeight)
+  end
+  if frame and frame.ftkBaseWidth then
+    frame:SetWidth(frame.ftkBaseWidth)
+  end
+  if panel and panel.ftkBaseWidth then
+    panel:SetWidth(panel.ftkBaseWidth)
   end
   if frame and UpdateUIPanelPositions then
     pcall(UpdateUIPanelPositions, frame)
@@ -477,8 +605,12 @@ local function InstallHook()
 end
 
 local events = CreateFrame("Frame")
-events:SetScript("OnEvent", function()
+events:SetScript("OnEvent", function(_, event)
   if not FTK:IsEnabled(MODULE_ID) then
+    return
+  end
+  if event == "PLAYER_REGEN_DISABLED" then
+    RevealScrolledItems()
     return
   end
   InstallHook()
@@ -487,10 +619,20 @@ end)
 
 FTK.CleanBankRefresh = ScheduleLayout
 
+-- The bank window is anchored at its top left, so the grip sits bottom
+-- right.
+bankView = BagWindow.NewView({
+  moduleID = MODULE_ID,
+  corner = "BOTTOMRIGHT",
+  minWidth = PANEL_MARGIN + (MIN_COLUMNS * (37 + ITEM_GAP_X)),
+  minHeight = MIN_PANEL_HEIGHT,
+  onChange = ScheduleLayout,
+})
+
 FTK:RegisterModule({
   id = MODULE_ID,
   name = "Clean Bank",
-  description = "Groups the bank into Quest Items, Munitions, Reagents, Crafting, equipment sets, Gear, General, Junk, and Empty. Alt+right-click an item to put it in a category of your own. Right-click a section label to move it up or down.",
+  description = "Groups the bank into Quest Items, Munitions, Reagents, Crafting, equipment sets, Gear, General, Junk, and Empty. Alt+right-click an item to put it in a category of your own. Right-click a section label to move it up or down. Drag the bottom right grip to resize.",
   defaultEnabled = true,
   onEnable = function()
     InstallHook()
@@ -499,6 +641,8 @@ FTK:RegisterModule({
     events:RegisterEvent("PLAYER_ACCOUNT_BANK_TAB_SLOTS_CHANGED")
     events:RegisterEvent("BAG_UPDATE")
     events:RegisterEvent("EQUIPMENT_SETS_CHANGED")
+    events:RegisterEvent("PLAYER_REGEN_DISABLED")
+    events:RegisterEvent("PLAYER_REGEN_ENABLED")
     ScheduleLayout()
   end,
   onDisable = function()

@@ -19,6 +19,8 @@ Modules\SpellIdTooltip.lua
 Modules\SpellMaxer.lua
 Modules\BagCategoryStore.lua
 Modules\BagCategoryMenu.lua
+Modules\BagSectionFlow.lua
+Modules\BagWindow.lua
 Modules\BagSections.lua
 Modules\CleanBank.lua
 Modules\QuickDrop.lua
