@@ -17,6 +17,8 @@ Menu.lua
 # Feature modules are listed below, one file per feature.
 Modules\SpellIdTooltip.lua
 Modules\SpellMaxer.lua
+Modules\BagCategoryStore.lua
+Modules\BagCategoryMenu.lua
 Modules\BagSections.lua
 Modules\CleanBank.lua
 Modules\QuickDrop.lua

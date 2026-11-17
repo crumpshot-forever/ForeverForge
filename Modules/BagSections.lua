@@ -1,11 +1,13 @@
 --[[
   Splits the combined backpack into labeled groups:
+  the player's own categories first (BagCategoryStore.lua), then
   Quest Items, Munitions, Reagents, Crafting, one section per saved equipment set,
   Gear, General, Junk (poor quality), then Empty.
 
   Only runs while the combined backpack is the bag UI.
   Item buttons stay Blizzard's buttons, so click, drag, and tooltips
   keep working. A secret item id is left in General.
+  Alt+right-click on an item opens the own-category menu (BagCategoryMenu.lua).
 
   Blizzard's combined grid stops at the fourth bag. The reagent bag
   (the extra Forever slot, bag 5) is grouped into the same window on
@@ -29,6 +31,13 @@
 local FTK = ForeverForge
 if not FTK then
   error("ForeverForge: Core.lua must load before Modules/BagSections.lua")
+end
+
+-- The player's own categories: storage and the Alt+right-click menu.
+local Categories = FTK.BagCategoryStore
+local CategoryMenu = FTK.BagCategoryMenu
+if not Categories or not CategoryMenu then
+  error("ForeverForge: BagCategoryStore.lua and BagCategoryMenu.lua must load before Modules/BagSections.lua")
 end
 
 local MODULE_ID = "BagSections"
@@ -511,7 +520,20 @@ local function ReadItem(bag, slot)
   }
 end
 
+-- Item id of a backpack button at click time, for the category menu.
+-- Nil for an empty slot or a secret value.
+local function ItemIDOf(button)
+  local bag, slot = ButtonBagSlot(button)
+  local item = ReadItem(bag, slot)
+  return item and item.itemID
+end
+
 local function CategoryFor(item, bag, slot, setByItem, setBySlot)
+  -- An own category of the player wins over every default section.
+  local customID, customTitle = Categories:CategoryOf(item.itemID)
+  if customID then
+    return customID, customTitle
+  end
   if item.quest or IsQuestClass(ItemClass(item.itemID)) then
     return "quest"
   end
@@ -1246,6 +1268,7 @@ local function Layout(frame, allowHidden)
 
   for index = 1, #buttons do
     local button = buttons[index]
+    CategoryMenu:Attach(button, MODULE_ID, ItemIDOf)
     local bag, slot = ButtonBagSlot(button)
     local item = ReadItem(bag, slot)
     if not item then
@@ -1283,6 +1306,12 @@ local function Layout(frame, allowHidden)
   end
 
   local ordered = {}
+  -- Own categories come first, in the order they were created.
+  local customIDs = Categories:OrderedGroupIDs(groupOrder, groups)
+  for index = 1, #customIDs do
+    SortEntries(groups[customIDs[index]].items)
+    ordered[#ordered + 1] = groups[customIDs[index]]
+  end
   local prefix = { "quest", "consumable", "munitions", "spellreagent", "reagent" }
   for index = 1, #prefix do
     local group = groups[prefix[index]]
@@ -1664,7 +1693,7 @@ FTK.CleanBagsRefresh = ScheduleLayout
 FTK:RegisterModule({
   id = MODULE_ID,
   name = "Clean Bags",
-  description = "Groups the combined backpack, including the reagent bag, into Quest Items, Munitions, Reagents, Crafting, equipment sets, Gear, General, Junk, and Empty.",
+  description = "Groups the combined backpack, including the reagent bag, into Quest Items, Munitions, Reagents, Crafting, equipment sets, Gear, General, Junk, and Empty. Alt+right-click an item to put it in a category of your own.",
   defaultEnabled = true,
   onEnable = function()
     InstallHook()

@@ -1,8 +1,10 @@
 --[[
   Clean Bank. Groups the open bank with the same sections as Clean Bags:
+  the player's own categories first, then
   Quest Items, Munitions, Reagents, Crafting, equipment sets, Gear, General, Junk, Empty.
 
   Uses the bank's own item buttons. A secret item id is left in General.
+  Alt+right-click on an item opens the own-category menu (BagCategoryMenu.lua).
 ]]
 
 local FTK = ForeverForge
@@ -11,6 +13,9 @@ if not FTK or not FTK.CleanBagRules then
 end
 
 local Rules = FTK.CleanBagRules
+-- The player's own categories: storage and the Alt+right-click menu.
+local Categories = FTK.BagCategoryStore
+local CategoryMenu = FTK.BagCategoryMenu
 local MODULE_ID = "CleanBank"
 local ITEM_GAP_X = 5
 local ITEM_GAP_Y = 5
@@ -198,12 +203,20 @@ local function Layout(frame, panel)
     end
     return group
   end
+  -- Item id of a bank button at click time, for the category menu.
+  local function ItemIDOf(button)
+    local bag, slot = ButtonBagSlot(button, panel)
+    local item = Rules.ReadItem(bag, slot)
+    return item and item.itemID
+  end
+
   local index
   for index = 1, #SECTIONS do
     Group(SECTIONS[index].id, SECTIONS[index].title)
   end
   for index = 1, #buttons do
     local button = buttons[index]
+    CategoryMenu:Attach(button, MODULE_ID, ItemIDOf)
     local bag, slot = ButtonBagSlot(button, panel)
     local item = Rules.ReadItem(bag, slot)
     if not item then
@@ -241,6 +254,12 @@ local function Layout(frame, panel)
   end
 
   local ordered = {}
+  -- Own categories come first, in the order they were created.
+  local customIDs = Categories:OrderedGroupIDs(groupOrder, groups)
+  for index = 1, #customIDs do
+    SortEntries(groups[customIDs[index]].items)
+    ordered[#ordered + 1] = groups[customIDs[index]]
+  end
   local prefix = { "quest", "consumable", "munitions", "spellreagent", "reagent" }
   for index = 1, #prefix do
     local group = groups[prefix[index]]
@@ -462,7 +481,7 @@ FTK.CleanBankRefresh = ScheduleLayout
 FTK:RegisterModule({
   id = MODULE_ID,
   name = "Clean Bank",
-  description = "Groups the bank into Quest Items, Munitions, Reagents, Crafting, equipment sets, Gear, General, Junk, and Empty.",
+  description = "Groups the bank into Quest Items, Munitions, Reagents, Crafting, equipment sets, Gear, General, Junk, and Empty. Alt+right-click an item to put it in a category of your own.",
   defaultEnabled = true,
   onEnable = function()
     InstallHook()
