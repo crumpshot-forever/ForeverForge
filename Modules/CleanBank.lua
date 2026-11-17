@@ -1,10 +1,12 @@
 --[[
-  Clean Bank. Groups the open bank with the same sections as Clean Bags:
-  the player's own categories first, then
+  Clean Bank. Groups the open bank with the same sections as Clean Bags,
+  in the same section order. Default order: the player's own categories
+  first, then
   Quest Items, Munitions, Reagents, Crafting, equipment sets, Gear, General, Junk, Empty.
 
   Uses the bank's own item buttons. A secret item id is left in General.
-  Alt+right-click on an item opens the own-category menu (BagCategoryMenu.lua).
+  Alt+right-click on an item opens the own-category menu, right-click on
+  a section label the move menu (BagCategoryMenu.lua).
 ]]
 
 local FTK = ForeverForge
@@ -254,7 +256,7 @@ local function Layout(frame, panel)
   end
 
   local ordered = {}
-  -- Own categories come first, in the order they were created.
+  -- By default own categories come first, in the order they were created.
   local customIDs = Categories:OrderedGroupIDs(groupOrder, groups)
   for index = 1, #customIDs do
     SortEntries(groups[customIDs[index]].items)
@@ -301,6 +303,12 @@ local function Layout(frame, panel)
   if empty and #empty.empties > 0 then
     ordered[#ordered + 1] = empty
   end
+  -- The player's section order wins over the default order built above.
+  Categories:SortGroups(ordered)
+  local orderedIDs = {}
+  for index = 1, #ordered do
+    orderedIDs[index] = ordered[index].id
+  end
 
   local buttonWidth, buttonHeight = ButtonSize(buttons[1])
   local panelWidth = Rules.PlainNumber(panel:GetWidth()) or 400
@@ -344,6 +352,7 @@ local function Layout(frame, panel)
         return ButtonBagSlot(button, panel)
       end)
     end
+    CategoryMenu:AttachHeader(header, MODULE_ID, group.id, group.title, orderedIDs)
     cursor = cursor + HEADER_H + 4
 
     local placed = {}
@@ -481,7 +490,7 @@ FTK.CleanBankRefresh = ScheduleLayout
 FTK:RegisterModule({
   id = MODULE_ID,
   name = "Clean Bank",
-  description = "Groups the bank into Quest Items, Munitions, Reagents, Crafting, equipment sets, Gear, General, Junk, and Empty. Alt+right-click an item to put it in a category of your own.",
+  description = "Groups the bank into Quest Items, Munitions, Reagents, Crafting, equipment sets, Gear, General, Junk, and Empty. Alt+right-click an item to put it in a category of your own. Right-click a section label to move it up or down.",
   defaultEnabled = true,
   onEnable = function()
     InstallHook()

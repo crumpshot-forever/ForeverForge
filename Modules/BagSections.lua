@@ -1,13 +1,15 @@
 --[[
-  Splits the combined backpack into labeled groups:
+  Splits the combined backpack into labeled groups. Default order:
   the player's own categories first (BagCategoryStore.lua), then
   Quest Items, Munitions, Reagents, Crafting, one section per saved equipment set,
-  Gear, General, Junk (poor quality), then Empty.
+  Gear, General, Junk (poor quality), then Empty. The player's saved
+  section order wins over the default order.
 
   Only runs while the combined backpack is the bag UI.
   Item buttons stay Blizzard's buttons, so click, drag, and tooltips
   keep working. A secret item id is left in General.
-  Alt+right-click on an item opens the own-category menu (BagCategoryMenu.lua).
+  Alt+right-click on an item opens the own-category menu, right-click on
+  a section label the move menu (BagCategoryMenu.lua).
 
   Blizzard's combined grid stops at the fourth bag. The reagent bag
   (the extra Forever slot, bag 5) is grouped into the same window on
@@ -1306,7 +1308,7 @@ local function Layout(frame, allowHidden)
   end
 
   local ordered = {}
-  -- Own categories come first, in the order they were created.
+  -- By default own categories come first, in the order they were created.
   local customIDs = Categories:OrderedGroupIDs(groupOrder, groups)
   for index = 1, #customIDs do
     SortEntries(groups[customIDs[index]].items)
@@ -1353,6 +1355,12 @@ local function Layout(frame, allowHidden)
   if empty and #empty.empties > 0 then
     ordered[#ordered + 1] = empty
   end
+  -- The player's section order wins over the default order built above.
+  Categories:SortGroups(ordered)
+  local orderedIDs = {}
+  for index = 1, #ordered do
+    orderedIDs[index] = ordered[index].id
+  end
 
   local columns = 10
   if frame.GetColumns then
@@ -1394,6 +1402,7 @@ local function Layout(frame, allowHidden)
     if FTK.QuickDrop and FTK.QuickDrop.Attach then
       FTK.QuickDrop:Attach(header, group.items, "deposit", group.title, ButtonBagSlot)
     end
+    CategoryMenu:AttachHeader(header, MODULE_ID, group.id, group.title, orderedIDs)
     cursor = cursor + HEADER_H + 4
 
     local placed = {}
@@ -1693,7 +1702,7 @@ FTK.CleanBagsRefresh = ScheduleLayout
 FTK:RegisterModule({
   id = MODULE_ID,
   name = "Clean Bags",
-  description = "Groups the combined backpack, including the reagent bag, into Quest Items, Munitions, Reagents, Crafting, equipment sets, Gear, General, Junk, and Empty. Alt+right-click an item to put it in a category of your own.",
+  description = "Groups the combined backpack, including the reagent bag, into Quest Items, Munitions, Reagents, Crafting, equipment sets, Gear, General, Junk, and Empty. Alt+right-click an item to put it in a category of your own. Right-click a section label to move it up or down.",
   defaultEnabled = true,
   onEnable = function()
     InstallHook()

@@ -1,11 +1,15 @@
 --[[
-  Menu for own bag categories.
+  Menus for own bag categories.
 
   Alt+right-click on an item in the backpack (Clean Bags) or the bank
   (Clean Bank) opens a small menu next to the item:
     - the existing own categories (a click puts the item there),
     - "New category..." (type a name, the item goes in at once),
     - "Back to default" (only for an item that is in a category).
+
+  Right-click on the label of any section, own or default, opens a menu
+  at the mouse with "Move up" and "Move down". A move steps past the
+  neighbouring section in the same window.
 
   Blizzard's click handler treats an Alt click as a modified click, so the
   item is neither used nor moved. This file hooks in after that handler
@@ -33,6 +37,8 @@ local TEXTS = {
   enUS = {
     newCategory = "New category...",
     backToDefault = "Back to default",
+    moveUp = "Move up",
+    moveDown = "Move down",
     popup = "Name of the new category for %s:",
     unknownItem = "Item",
     errors = {
@@ -45,6 +51,8 @@ local TEXTS = {
   deDE = {
     newCategory = "Neue Kategorie...",
     backToDefault = "Zurück in Standard",
+    moveUp = "Nach oben",
+    moveDown = "Nach unten",
     popup = "Name der neuen Kategorie für %s:",
     unknownItem = "Item",
     errors = {
@@ -63,6 +71,10 @@ local Menu = {}
 -- Hooked item buttons: button -> { moduleID, itemIDOf }. Weak keys, so no
 -- fields are written into Blizzard's frames.
 local attached = setmetatable({}, { __mode = "k" })
+
+-- Hooked section headers: header -> { moduleID, id, title, visibleIDs }.
+-- Headers are pooled, so every layout sets the entry again.
+local headers = setmetatable({}, { __mode = "k" })
 
 local menuFrame
 
@@ -325,13 +337,54 @@ local function BuildEntries(itemID)
   return entries
 end
 
--- Opens the menu next to an item button.
-function Menu:Open(anchor, itemID)
+-- Moves a section, then refreshes the layouts.
+local function MoveAndRefresh(id, direction, visibleIDs)
+  if Store:MoveSection(id, direction, visibleIDs) then
+    RefreshLayouts()
+  end
+end
+
+-- Menu entries for a section header: "Move up" unless it is the first
+-- section shown, "Move down" unless it is the last one shown.
+local function BuildHeaderEntries(id, visibleIDs)
+  local position
+  for index = 1, #visibleIDs do
+    if visibleIDs[index] == id then
+      position = index
+      break
+    end
+  end
+  local entries = {}
+  if not position then
+    return entries
+  end
+  if position > 1 then
+    entries[#entries + 1] = {
+      label = L.moveUp,
+      action = function()
+        MoveAndRefresh(id, -1, visibleIDs)
+      end,
+    }
+  end
+  if position < #visibleIDs then
+    entries[#entries + 1] = {
+      label = L.moveDown,
+      action = function()
+        MoveAndRefresh(id, 1, visibleIDs)
+      end,
+    }
+  end
+  return entries
+end
+
+-- Fills the menu with entries and shows it, at the mouse when atCursor
+-- is true, else next to the anchor. The menu closes once the anchor is
+-- hidden.
+local function ShowMenu(anchor, title, entries, atCursor)
   local frame = EnsureMenuFrame()
   frame:Hide()
-  frame.title:SetText(ItemName(itemID))
+  frame.title:SetText(title)
 
-  local entries = BuildEntries(itemID)
   local offset = PAD + TITLE_HEIGHT + 4
   frame.divider:Hide()
   for index = 1, #entries do
@@ -359,10 +412,21 @@ function Menu:Open(anchor, itemID)
 
   frame:SetHeight(offset + PAD)
   frame:ClearAllPoints()
-  frame:SetPoint("TOPLEFT", anchor, "TOPRIGHT", 4, 0)
+  if atCursor and GetCursorPosition then
+    local x, y = GetCursorPosition()
+    local scale = frame:GetEffectiveScale()
+    frame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", x / scale, y / scale)
+  else
+    frame:SetPoint("TOPLEFT", anchor, "TOPRIGHT", 4, 0)
+  end
   frame.anchor = anchor
   frame:Show()
   frame:Raise()
+end
+
+-- Opens the item menu next to an item button.
+function Menu:Open(anchor, itemID)
+  ShowMenu(anchor, ItemName(itemID), BuildEntries(itemID), false)
 end
 
 -- True for Alt+right-click without Shift or Ctrl.
@@ -405,6 +469,43 @@ function Menu:Attach(button, moduleID, itemIDOf)
   end
   attached[button] = { moduleID = moduleID, itemIDOf = itemIDOf }
   button:HookScript("OnClick", OnItemButtonClick)
+end
+
+-- Right-click on a header opens the move menu of its section.
+local function OnHeaderMouseUp(header, mouseButton)
+  if mouseButton ~= "RightButton" then
+    return
+  end
+  local entry = headers[header]
+  if not entry or not entry.id or not FTK:IsEnabled(entry.moduleID) then
+    return
+  end
+  local entries = BuildHeaderEntries(entry.id, entry.visibleIDs)
+  if #entries == 0 then
+    return
+  end
+  ShowMenu(header, entry.title, entries, true)
+end
+
+-- Connects a section header to the move menu and lets it take the mouse.
+-- Call it for every header of a layout: id and title name the section
+-- the header shows, visibleIDs lists the group ids of that layout from
+-- top to bottom.
+function Menu:AttachHeader(header, moduleID, id, title, visibleIDs)
+  if type(header) ~= "table" or not header.HookScript then
+    return
+  end
+  local entry = headers[header]
+  if not entry then
+    entry = {}
+    headers[header] = entry
+    header:HookScript("OnMouseUp", OnHeaderMouseUp)
+  end
+  entry.moduleID = moduleID
+  entry.id = id
+  entry.title = title
+  entry.visibleIDs = visibleIDs or {}
+  header:EnableMouse(true)
 end
 
 FTK.BagCategoryMenu = Menu
