@@ -14,8 +14,12 @@
   is the taint mark. If that window is already open, it is parked off
   screen and closed with B.
 
-  A secure button over each reagent item performs the right-click use.
-  The button is addon-made, so its own UseContainerItem call is blocked.
+  A secure button over each reagent item performs the right-click. That
+  uses the item, and sells it while a merchant buy tab is open. The
+  button sits on the slot, above the chrome, because a later resize
+  raises the slot over a sibling and the click never arrives. The slot
+  itself picks up and drops with its own bag id. The parent frame's id
+  is the backpack, and SetBagID on an addon button taints the click.
 
   The combined frame and its item buttons are protected. Combat puts
   those buttons back on Blizzard's grid, and our labels cannot follow,
@@ -676,6 +680,286 @@ local function PaintOwnedReagentButton(button, bag, slot)
   end
 end
 
+local function ReagentBagAndSlot(button)
+  if not button then
+    return nil, nil
+  end
+  local bag = PlainNumber(button.ftkBag)
+  local slot
+  if button.GetID then
+    local ok, value = pcall(button.GetID, button)
+    if ok then
+      slot = PlainNumber(value)
+    end
+  end
+  if not bag or not slot or slot < 1 then
+    return nil, nil
+  end
+  return bag, slot
+end
+
+local function ReagentItemLink(bag, slot)
+  if C_Container and C_Container.GetContainerItemLink then
+    local ok, link = pcall(C_Container.GetContainerItemLink, bag, slot)
+    if ok and type(link) == "string" and link ~= "" then
+      return link
+    end
+  end
+  if GetContainerItemLink then
+    local ok, link = pcall(GetContainerItemLink, bag, slot)
+    if ok and type(link) == "string" and link ~= "" then
+      return link
+    end
+  end
+  if C_Container and C_Container.GetContainerItemInfo then
+    local ok, info = pcall(C_Container.GetContainerItemInfo, bag, slot)
+    if ok and type(info) == "table" then
+      return PlainString(info.hyperlink)
+    end
+  end
+  return nil
+end
+
+local function CursorHoldingItem()
+  if type(CursorHasItem) == "function" then
+    local ok, holding = pcall(CursorHasItem)
+    if ok and holding == true then
+      return true
+    end
+  end
+  if type(GetCursorInfo) == "function" then
+    local ok, kind = pcall(GetCursorInfo)
+    if ok and kind ~= nil and kind ~= false then
+      return true
+    end
+  end
+  return false
+end
+
+local function SpellWantsItem()
+  if type(SpellCanTargetItem) == "function" then
+    local ok, value = pcall(SpellCanTargetItem)
+    if ok and value == true then
+      return true
+    end
+  end
+  if type(SpellCanTargetItemID) == "function" then
+    local ok, value = pcall(SpellCanTargetItemID)
+    if ok and value == true then
+      return true
+    end
+  end
+  return false
+end
+
+local function MerchantFrameShown()
+  local merchant = _G.MerchantFrame
+  if not merchant or not merchant.IsShown then
+    return false
+  end
+  local ok, shown = pcall(merchant.IsShown, merchant)
+  return ok and shown == true
+end
+
+-- Buyback is merchant tab 2. A right-click there must not sell.
+local function MerchantBuyback()
+  if not MerchantFrameShown() then
+    return false
+  end
+  local merchant = _G.MerchantFrame
+  return merchant.selectedTab == 2
+end
+
+-- The buy tab is open. Right-click should sell, which the secure use
+-- button does not do for this bag.
+local function MerchantSellOpen()
+  return MerchantFrameShown() and not MerchantBuyback()
+end
+
+local function PickupReagentSlot(bag, slot)
+  if C_Container and C_Container.PickupContainerItem then
+    pcall(C_Container.PickupContainerItem, bag, slot)
+    return
+  end
+  if PickupContainerItem then
+    pcall(PickupContainerItem, bag, slot)
+  end
+end
+
+local function UseReagentSlot(bag, slot)
+  if MerchantBuyback() then
+    return
+  end
+  if C_Container and C_Container.UseContainerItem then
+    pcall(C_Container.UseContainerItem, bag, slot)
+    return
+  end
+  if UseContainerItem then
+    pcall(UseContainerItem, bag, slot)
+  end
+end
+
+local function SplitReagentStack(button, bag, slot)
+  if type(IsModifiedClick) ~= "function" or not IsModifiedClick("SPLITSTACK") then
+    return false
+  end
+  if CursorHoldingItem() or type(OpenStackSplitFrame) ~= "function" then
+    return false
+  end
+  local count
+  local locked = false
+  if C_Container and C_Container.GetContainerItemInfo then
+    local ok, info = pcall(C_Container.GetContainerItemInfo, bag, slot)
+    if ok and type(info) == "table" then
+      count = PlainNumber(info.stackCount)
+      locked = info.isLocked == true
+    end
+  end
+  if locked or not count or count <= 1 then
+    return false
+  end
+  button.SplitStack = function(_, split)
+    split = PlainNumber(split)
+    if not split or split < 1 then
+      return
+    end
+    if C_Container and C_Container.SplitContainerItem then
+      pcall(C_Container.SplitContainerItem, bag, slot, split)
+    elseif SplitContainerItem then
+      pcall(SplitContainerItem, bag, slot, split)
+    end
+  end
+  pcall(OpenStackSplitFrame, count, button, "BOTTOMRIGHT", "TOPRIGHT")
+  return true
+end
+
+-- Shift-click links the item. Control-click opens the dressing room.
+-- A modified click must not also pick the item up.
+local function ModifiedReagentClick(bag, slot)
+  if CursorHoldingItem() or type(IsModifiedClick) ~= "function" or not IsModifiedClick() then
+    return false
+  end
+  if type(HandleModifiedItemClick) ~= "function" then
+    return false
+  end
+  local link = ReagentItemLink(bag, slot)
+  if not link then
+    return false
+  end
+  local ok, handled = pcall(HandleModifiedItemClick, link)
+  return ok and handled == true
+end
+
+local function OnReagentSlotEnter(self)
+  local bag, slot = ReagentBagAndSlot(self)
+  if not bag or not GameTooltip or not GameTooltip.SetBagItem then
+    return
+  end
+  GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+  GameTooltip:SetBagItem(bag, slot)
+end
+
+local function OnReagentSlotLeave()
+  if GameTooltip and GameTooltip.Hide then
+    GameTooltip:Hide()
+  end
+end
+
+local function OnReagentSlotDrag(self)
+  local bag, slot = ReagentBagAndSlot(self)
+  if not bag then
+    return
+  end
+  PickupReagentSlot(bag, slot)
+end
+
+-- The secure overlay is the frame that receives an unmodified right-click
+-- when it is showing above the slot. The slot must not use the item too.
+local function ReagentUseCovered(button)
+  local overlay = button and button.ftkUseOverlay
+  if not overlay or not overlay.IsShown then
+    return false
+  end
+  local ok, shown = pcall(overlay.IsShown, overlay)
+  if not ok or shown ~= true then
+    return false
+  end
+  if overlay.GetParent then
+    local parentOk, parent = pcall(overlay.GetParent, overlay)
+    if not parentOk or parent ~= button then
+      return false
+    end
+  end
+  local overlayLevel = 0
+  local buttonLevel = 0
+  if overlay.GetFrameLevel then
+    local levelOk, value = pcall(overlay.GetFrameLevel, overlay)
+    if levelOk then
+      overlayLevel = PlainNumber(value) or 0
+    end
+  end
+  if button.GetFrameLevel then
+    local levelOk, value = pcall(button.GetFrameLevel, button)
+    if levelOk then
+      buttonLevel = PlainNumber(value) or 0
+    end
+  end
+  return overlayLevel > buttonLevel
+end
+
+-- Left click picks up, places, or swaps. Right click uses, and sells
+-- while the merchant is open. The secure overlay takes an unmodified
+-- right-click when it is the frame under the cursor. This handler is
+-- the path for a click that lands on the slot itself.
+local function OnReagentSlotClick(self, mouseButton)
+  local bag, slot = ReagentBagAndSlot(self)
+  if not bag then
+    return
+  end
+  if SplitReagentStack(self, bag, slot) then
+    return
+  end
+  if ModifiedReagentClick(bag, slot) then
+    return
+  end
+  if mouseButton == "RightButton" then
+    if type(IsModifiedClick) == "function" and IsModifiedClick() then
+      return
+    end
+    -- At a vendor the secure use button swallows the click and does not
+    -- sell. The slot sells with its own bag id. Outside a vendor the
+    -- secure button uses the item, so this slot must not use it too.
+    if not MerchantSellOpen() and ReagentUseCovered(self) then
+      return
+    end
+    UseReagentSlot(bag, slot)
+    return
+  end
+  if mouseButton ~= "LeftButton" then
+    return
+  end
+  if SpellWantsItem() then
+    UseReagentSlot(bag, slot)
+    return
+  end
+  PickupReagentSlot(bag, slot)
+end
+
+local function WireReagentSlot(button)
+  if not button or button.ftkReagentClicks then
+    return
+  end
+  button.ftkReagentClicks = true
+  button:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+  button:RegisterForDrag("LeftButton")
+  button.OnClick = OnReagentSlotClick
+  button:SetScript("OnClick", OnReagentSlotClick)
+  button:SetScript("OnDragStart", OnReagentSlotDrag)
+  button:SetScript("OnReceiveDrag", OnReagentSlotDrag)
+  button:SetScript("OnEnter", OnReagentSlotEnter)
+  button:SetScript("OnLeave", OnReagentSlotLeave)
+end
+
 -- Reagent slots are not part of the combined grid. Own buttons carry
 -- them. OpenBag(reagent) builds ContainerFrame6 on this addon's stack.
 local function OwnedReagentButtons(combined)
@@ -724,38 +1008,6 @@ local function OwnedReagentButtons(combined)
         end
       end
       if button then
-        if not button.GetBagID then
-          button.GetBagID = function(self)
-            return self.ftkBag
-          end
-        end
-        if not button.OnClick then
-          local function PickupOwned(self)
-            if C_Container and C_Container.PickupContainerItem then
-              C_Container.PickupContainerItem(self:GetBagID(), self:GetID())
-            end
-          end
-          button:RegisterForClicks("LeftButtonUp", "RightButtonUp")
-          button:RegisterForDrag("LeftButton")
-          button:SetScript("OnClick", function(self, mouseButton)
-            if mouseButton == "LeftButton" then
-              PickupOwned(self)
-            end
-          end)
-          button:SetScript("OnDragStart", PickupOwned)
-          button:SetScript("OnReceiveDrag", PickupOwned)
-          button:SetScript("OnEnter", function(self)
-            if GameTooltip and GameTooltip.SetBagItem then
-              GameTooltip:SetOwner(self, "ANCHOR_LEFT")
-              GameTooltip:SetBagItem(self:GetBagID(), self:GetID())
-            end
-          end)
-          button:SetScript("OnLeave", function()
-            if GameTooltip then
-              GameTooltip:Hide()
-            end
-          end)
-        end
         button.ftkOwnedReagent = true
         ownedReagentButtons[slot] = button
       end
@@ -763,9 +1015,13 @@ local function OwnedReagentButtons(combined)
     if button then
       button.ftkBag = bag
       button:SetID(slot)
-      if button.SetBagID then
-        pcall(button.SetBagID, button, bag)
+      -- The template's GetBagID follows the parent, or a bag id written
+      -- by SetBagID. SetBagID taints an addon button, and the parent id
+      -- is not this slot until the chrome is tagged. Own the method.
+      button.GetBagID = function(self)
+        return self.ftkBag
       end
+      WireReagentSlot(button)
       button:SetSize(width, height)
       PaintOwnedReagentButton(button, bag, slot)
       shown[#shown + 1] = button
@@ -829,6 +1085,15 @@ local function BagChrome()
       bagChrome:EnableMouseWheel(false)
     end
     bagChrome:Hide()
+  end
+  -- Reagent slots are parented here. Classic bag clicks read the
+  -- parent's id, and the retail mixin asks the parent for its bag id.
+  local bag = ReagentBagId()
+  if bag and bagChrome.SetID then
+    bagChrome:SetID(bag)
+  end
+  bagChrome.GetBagID = function()
+    return ReagentBagId()
   end
   return bagChrome
 end
@@ -984,17 +1249,34 @@ local function HideQueuedOverlays()
   end
 end
 
--- Right-click on a reagent slot has to stay secure. The Blizzard button
--- was opened from this addon, so its own UseContainerItem call is blocked.
--- An unmodified right-click uses the item. A modified one is handed back
--- to the Blizzard button for link and dress-up clicks.
+-- Right-click has to stay secure. An addon button's own UseContainerItem
+-- call is blocked, so a consumable never fires and a vendor never buys
+-- it. The overlay is a child of the slot. A sibling left under the slot
+-- when the bag resizes never sees the click. Left click passes through
+-- so the slot can pick up. A modified right-click is handed to the slot
+-- for link, dress-up, and split. Buyback must not sell.
+local REAGENT_USE_PRE = [[
+if button ~= "RightButton" or down then
+  return
+end
+local merchant = MerchantFrame
+if merchant and merchant:IsShown() and merchant.selectedTab == 2 then
+  return false
+end
+]]
+
 local function ArmReagentUse(button, bag, slot)
   if LockedDown() then
     return
   end
+  bag = PlainNumber(bag)
+  slot = PlainNumber(slot)
+  if not bag or not slot then
+    return
+  end
   local overlay = button.ftkUseOverlay
   if not overlay then
-    overlay = CreateFrame("Button", nil, UIParent, "SecureActionButtonTemplate")
+    overlay = CreateFrame("Button", nil, button, "SecureActionButtonTemplate")
     if not overlay then
       return
     end
@@ -1008,10 +1290,16 @@ local function ArmReagentUse(button, bag, slot)
       overlay:SetAttribute(prefix .. "clickbutton2", button)
     end
     if overlay.SetPassThroughButtons then
-      overlay:SetPassThroughButtons("LeftButton")
+      pcall(overlay.SetPassThroughButtons, overlay, "LeftButton")
     end
     if overlay.SetPropagateMouseMotion then
-      overlay:SetPropagateMouseMotion(true)
+      pcall(overlay.SetPropagateMouseMotion, overlay, true)
+    elseif not overlay.ftkTooltipHook and overlay.HookScript then
+      overlay.ftkTooltipHook = true
+      overlay:HookScript("OnEnter", function(self)
+        OnReagentSlotEnter(self:GetParent())
+      end)
+      overlay:HookScript("OnLeave", OnReagentSlotLeave)
     end
     if button.HookScript and not button.ftkUseOverlayHook then
       button.ftkUseOverlayHook = true
@@ -1030,8 +1318,23 @@ local function ArmReagentUse(button, bag, slot)
         end)
       end)
     end
+    if SecureHandlerWrapScript and not overlay.ftkUseWrapped then
+      local wrapped = pcall(SecureHandlerWrapScript, overlay, "OnClick", overlay, REAGENT_USE_PRE)
+      if wrapped then
+        overlay.ftkUseWrapped = true
+      end
+    end
   end
+  if overlay.GetParent and overlay.SetParent then
+    local parentOk, parent = pcall(overlay.GetParent, overlay)
+    if not parentOk or parent ~= button then
+      pcall(overlay.SetParent, overlay, button)
+    end
+  end
+  overlay:SetAttribute("type2", "item")
   overlay:SetAttribute("item2", bag .. " " .. slot)
+  overlay:SetAttribute("bag2", bag)
+  overlay:SetAttribute("slot2", slot)
   local strata = "MEDIUM"
   if button.GetFrameStrata then
     local ok, value = pcall(button.GetFrameStrata, button)
@@ -1044,10 +1347,83 @@ local function ArmReagentUse(button, bag, slot)
   if button.GetFrameLevel then
     level = PlainNumber(button:GetFrameLevel()) or 1
   end
-  overlay:SetFrameLevel(level + 20)
+  local top = level + 40
+  if top > 10000 then
+    top = 10000
+  end
+  if top <= level then
+    top = level
+  end
+  overlay:SetFrameLevel(top)
   overlay:ClearAllPoints()
   overlay:SetAllPoints(button)
+  if overlay.EnableMouse then
+    overlay:EnableMouse(true)
+  end
   overlay:Show()
+end
+
+-- Hide the secure use button while the vendor buy tab is open. It sits
+-- on the slot and its item action does not sell, so the right-click
+-- never reaches the slot.
+local function SyncReagentMerchant()
+  if LockedDown() then
+    return
+  end
+  local selling = MerchantSellOpen()
+  local button
+  for button in pairs(parkedReagentButtons) do
+    local overlay = button.ftkUseOverlay
+    if overlay and overlay.SetAttribute and overlay.Hide and overlay.Show then
+      if selling then
+        overlay:SetAttribute("type2", nil)
+        overlay:Hide()
+      else
+        local bag, slot = ReagentBagAndSlot(button)
+        if bag then
+          overlay:SetAttribute("type2", "item")
+          overlay:SetAttribute("item2", bag .. " " .. slot)
+          overlay:SetAttribute("bag2", bag)
+          overlay:SetAttribute("slot2", slot)
+        end
+        if button.IsShown then
+          local ok, shown = pcall(button.IsShown, button)
+          if ok and shown == true then
+            overlay:Show()
+          end
+        end
+      end
+    end
+  end
+end
+
+local function HookMerchantSell()
+  local merchant = _G.MerchantFrame
+  if not merchant or merchant.ftkReagentSellHook or not merchant.HookScript then
+    return
+  end
+  merchant.ftkReagentSellHook = true
+  merchant:HookScript("OnShow", function()
+    SyncReagentMerchant()
+  end)
+  merchant:HookScript("OnHide", function()
+    SyncReagentMerchant()
+  end)
+end
+
+-- The bag raises itself when its height changes, and the chrome follows.
+-- Re-seat every use button after that, or the slot covers it.
+local function RaiseReagentOverlays()
+  if LockedDown() then
+    return
+  end
+  local button
+  for button in pairs(parkedReagentButtons) do
+    local bag, slot = ReagentBagAndSlot(button)
+    if bag then
+      pcall(ArmReagentUse, button, bag, slot)
+    end
+  end
 end
 
 function HideReagentUse(button)
@@ -1402,8 +1778,11 @@ local function Layout(frame, allowHidden)
     pcall(RememberGroupedLayout, frame, height)
   end
   -- The bag can raise itself while it resizes. Put the labels back
-  -- above that background after the height is set.
+  -- above that background after the height is set, then put the reagent
+  -- use buttons back above the slots that raise with the chrome.
   ShowBagChrome(frame)
+  RaiseReagentOverlays()
+  SyncReagentMerchant()
   layoutPoints = nil
   layingOut = false
 end
@@ -1634,6 +2013,14 @@ events:SetScript("OnEvent", function(_, event)
     ApplyBagKey()
     return
   end
+  if event == "MERCHANT_SHOW" or event == "MERCHANT_CLOSED" then
+    HookMerchantSell()
+    SyncReagentMerchant()
+    if C_Timer and C_Timer.After then
+      C_Timer.After(0, SyncReagentMerchant)
+    end
+    return
+  end
   if event == "USE_COMBINED_BAGS_CHANGED" and not UsingCombinedBags() then
     ClearBagKey()
     RestoreBlizzardLayout()
@@ -1677,6 +2064,9 @@ FTK:RegisterModule({
     events:RegisterEvent("PLAYER_REGEN_ENABLED")
     events:RegisterEvent("UPDATE_BINDINGS")
     events:RegisterEvent("BAG_CONTAINER_UPDATE")
+    events:RegisterEvent("MERCHANT_SHOW")
+    events:RegisterEvent("MERCHANT_CLOSED")
+    HookMerchantSell()
     if C_Timer and C_Timer.After then
       C_Timer.After(0, function()
         PrimeCombined()
