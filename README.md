@@ -16,8 +16,8 @@ Do not rename the folder. The game only loads it when the folder name matches `F
 
 ## Tools
 
-- **Clean Bags.** Sections in the combined backpack, with a count on each label.
-- **Clean Bank.** The same sections on the bank. Labels stay short so the search box remains usable.
+- **Clean Bags.** Sections in the combined backpack, with a count on each label. Small sections sit side by side when there is room. Alt+right-click an item to put it in a category of your own. Right-click any section label to move that section up or down; the order is shared with Clean Bank. Drag the grip in the top left corner to set the window's width and height; a scroll bar appears when the items need more room.
+- **Clean Bank.** The same sections on the bank, your own categories included. Labels stay short so the search box remains usable. The grip sits in the bottom right corner.
 - **Quick Swap.** While the bank is open, move one whole section between your bags and the bank. The hearthstone stays in your bags.
 - **Auto-sell junk.** Sell grey junk when a merchant opens. Quest items stay.
 - **Repair All.** Repair all gear at a repair merchant. Optional guild funds. Skips non-repair vendors.
