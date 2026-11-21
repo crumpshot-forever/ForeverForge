@@ -1,8 +1,11 @@
 # Changelog
 
-## 1.8.4
+## 1.8.5
 
 - **Clean Bags.** Items in the reagent bag can be picked up, used, and sold to a vendor from the combined backpack. A click was using the backpack's bag id, and the use button sat under the slot after the bag resized. Right-click at a vendor sells the reagent-bag item from the slot itself.
+
+## 1.8.4
+
 - **Clean Bags.** In combat the backpack stays Blizzard's own bag. Group labels and the reagent buttons hide for the fight, and the groups come back when combat ends. The bag key is no longer overridden. Reagent slots are still grouped out of combat on this addon's own buttons, so opening bags does not build Blizzard's separate reagent window.
 
 ## 1.8.3
