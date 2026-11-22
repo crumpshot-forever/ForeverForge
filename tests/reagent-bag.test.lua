@@ -675,6 +675,8 @@ if merchantEvents then
 end
 check(not slot2.ftkUseOverlay:IsShown(), "the vendor buy tab hides the use button")
 check(slot2.ftkUseOverlay:GetAttribute("type2") == nil, "the use button does not also act at a vendor")
+slot2:GetScript("OnEnter")(slot2)
+check(not slot2.ftkUseOverlay:IsShown(), "pointing at a slot at a vendor leaves the use button off")
 resetCalls()
 click(slot2, "RightButton")
 check(saw("use", 5, 2), "right-click still sells after the use button hides")
@@ -700,10 +702,19 @@ resetCalls()
 click(slot1, "RightButton")
 check(countNamed("use") == 0, "covered right-click outside a vendor does not use the item twice")
 
+-- The use button can be left hidden: the bag key hides it, another window
+-- re-seats the chrome. A click on the bare slot must not use the item from
+-- this addon's own button. The client blocks that call ("Blocked action").
 slot1.ftkUseOverlay:Hide()
 resetCalls()
 click(slot1, "RightButton")
-check(saw("use", 5, 1), "right-click uses the reagent item when no merchant is open")
+check(countNamed("use") == 0, "right-click on an uncovered slot makes no blocked use call")
+check(slot1.ftkUseOverlay:IsShown(), "right-click on an uncovered slot puts the use button back")
+
+-- Pointing at the slot puts the use button back before the click lands.
+slot1.ftkUseOverlay:Hide()
+slot1:GetScript("OnEnter")(slot1)
+check(slot1.ftkUseOverlay:IsShown(), "pointing at a slot puts its use button back")
 
 -- The use button can sit under the slot after a resize. The slot still sells.
 slot1.ftkUseOverlay:Show()

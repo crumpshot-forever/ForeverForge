@@ -624,6 +624,7 @@ local function DismissReagentFrame()
 end
 
 local HideReagentUse
+local ArmReagentUse
 local ReturnReagentButtons
 
 local function RestoreReagentFrame()
@@ -852,7 +853,17 @@ end
 
 local function OnReagentSlotEnter(self)
   local bag, slot = ReagentBagAndSlot(self)
-  if not bag or not GameTooltip or not GameTooltip.SetBagItem then
+  if not bag then
+    return
+  end
+  -- The use button can be left hidden or under the slot: the bag resizes,
+  -- the bag key hides it, another window re-seats the chrome. The pointer
+  -- is on the slot now, so put it back before a click can land. Not at a
+  -- vendor's sell tab: there the button is kept off so the slot can sell.
+  if not MerchantSellOpen() then
+    pcall(ArmReagentUse, self, bag, slot)
+  end
+  if not GameTooltip or not GameTooltip.SetBagItem then
     return
   end
   GameTooltip:SetOwner(self, "ANCHOR_LEFT")
@@ -871,40 +882,6 @@ local function OnReagentSlotDrag(self)
     return
   end
   PickupReagentSlot(bag, slot)
-end
-
--- The secure overlay is the frame that receives an unmodified right-click
--- when it is showing above the slot. The slot must not use the item too.
-local function ReagentUseCovered(button)
-  local overlay = button and button.ftkUseOverlay
-  if not overlay or not overlay.IsShown then
-    return false
-  end
-  local ok, shown = pcall(overlay.IsShown, overlay)
-  if not ok or shown ~= true then
-    return false
-  end
-  if overlay.GetParent then
-    local parentOk, parent = pcall(overlay.GetParent, overlay)
-    if not parentOk or parent ~= button then
-      return false
-    end
-  end
-  local overlayLevel = 0
-  local buttonLevel = 0
-  if overlay.GetFrameLevel then
-    local levelOk, value = pcall(overlay.GetFrameLevel, overlay)
-    if levelOk then
-      overlayLevel = PlainNumber(value) or 0
-    end
-  end
-  if button.GetFrameLevel then
-    local levelOk, value = pcall(button.GetFrameLevel, button)
-    if levelOk then
-      buttonLevel = PlainNumber(value) or 0
-    end
-  end
-  return overlayLevel > buttonLevel
 end
 
 -- Left click picks up, places, or swaps. Right click uses, and sells
@@ -927,9 +904,13 @@ local function OnReagentSlotClick(self, mouseButton)
       return
     end
     -- At a vendor the secure use button swallows the click and does not
-    -- sell. The slot sells with its own bag id. Outside a vendor the
-    -- secure button uses the item, so this slot must not use it too.
-    if not MerchantSellOpen() and ReagentUseCovered(self) then
+    -- sell, so the slot sells with its own bag id. Away from a vendor only
+    -- the secure button may use the item: using it from here is a protected
+    -- call the client blocks on this addon's own button. If the click landed
+    -- here the button was not covering the slot, so put it back for the next
+    -- one rather than asking for an action that cannot be taken.
+    if not MerchantSellOpen() then
+      pcall(ArmReagentUse, self, bag, slot)
       return
     end
     UseReagentSlot(bag, slot)
@@ -1265,7 +1246,7 @@ if merchant and merchant:IsShown() and merchant.selectedTab == 2 then
 end
 ]]
 
-local function ArmReagentUse(button, bag, slot)
+function ArmReagentUse(button, bag, slot)
   if LockedDown() then
     return
   end
