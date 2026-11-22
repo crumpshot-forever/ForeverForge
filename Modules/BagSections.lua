@@ -777,6 +777,68 @@ local function MerchantSellOpen()
   return MerchantFrameShown() and not MerchantBuyback()
 end
 
+local function AuctionHouseShown()
+  local auction = _G.AuctionHouseFrame
+  if not auction or not auction.IsShown then
+    return false
+  end
+  local ok, shown = pcall(auction.IsShown, auction)
+  return ok and shown == true
+end
+
+local function ReagentItemLocation(bag, slot)
+  if not ItemLocation or not ItemLocation.CreateFromBagAndSlot then
+    return nil
+  end
+  local ok, location = pcall(ItemLocation.CreateFromBagAndSlot, ItemLocation, bag, slot)
+  if ok then
+    return location
+  end
+  return nil
+end
+
+-- The auction house is open. Blizzard's bag slot hands a right-clicked
+-- item to the sell frame rather than using it: any item on the listing
+-- page, which shows its own error, and elsewhere only one it can sell.
+local function AuctionTakesReagent(bag, slot)
+  if not AuctionHouseShown() then
+    return false
+  end
+  local auction = _G.AuctionHouseFrame
+  if auction.IsListingAuctions then
+    local ok, listing = pcall(auction.IsListingAuctions, auction)
+    if ok and listing == true then
+      return true
+    end
+  end
+  local location = ReagentItemLocation(bag, slot)
+  if not location or not C_AuctionHouse or not C_AuctionHouse.IsSellItemValid then
+    return false
+  end
+  local validOk, valid = pcall(location.IsValid, location)
+  if not validOk or valid ~= true then
+    return false
+  end
+  local ok, sellable = pcall(C_AuctionHouse.IsSellItemValid, location, false)
+  return ok and sellable == true
+end
+
+local function PostReagentSlot(bag, slot)
+  local auction = _G.AuctionHouseFrame
+  local location = ReagentItemLocation(bag, slot)
+  if not location or not auction or not auction.SetPostItem then
+    return
+  end
+  pcall(auction.SetPostItem, auction, location)
+end
+
+-- The slot, not the secure use button, takes this right-click: the
+-- vendor sells the item and the auction house lists it. The use button's
+-- item action does neither, so it is kept off the slot.
+local function SlotTakesRightClick(bag, slot)
+  return MerchantSellOpen() or AuctionTakesReagent(bag, slot)
+end
+
 local function PickupReagentSlot(bag, slot)
   if C_Container and C_Container.PickupContainerItem then
     pcall(C_Container.PickupContainerItem, bag, slot)
@@ -858,11 +920,9 @@ local function OnReagentSlotEnter(self)
   end
   -- The use button can be left hidden or under the slot: the bag resizes,
   -- the bag key hides it, another window re-seats the chrome. The pointer
-  -- is on the slot now, so put it back before a click can land. Not at a
-  -- vendor's sell tab: there the button is kept off so the slot can sell.
-  if not MerchantSellOpen() then
-    pcall(ArmReagentUse, self, bag, slot)
-  end
+  -- is on the slot now, so put it back before a click can land. At a
+  -- vendor or the auction house this keeps it off instead.
+  pcall(ArmReagentUse, self, bag, slot)
   if not GameTooltip or not GameTooltip.SetBagItem then
     return
   end
@@ -904,16 +964,22 @@ local function OnReagentSlotClick(self, mouseButton)
       return
     end
     -- At a vendor the secure use button swallows the click and does not
-    -- sell, so the slot sells with its own bag id. Away from a vendor only
-    -- the secure button may use the item: using it from here is a protected
-    -- call the client blocks on this addon's own button. If the click landed
-    -- here the button was not covering the slot, so put it back for the next
-    -- one rather than asking for an action that cannot be taken.
-    if not MerchantSellOpen() then
-      pcall(ArmReagentUse, self, bag, slot)
+    -- sell, so the slot sells with its own bag id. At the auction house the
+    -- slot hands the item to the sell frame, as Blizzard's slot does.
+    -- Anywhere else only the secure button may use the item: using it from
+    -- here is a protected call the client blocks on this addon's own
+    -- button. If the click landed here the button was not covering the
+    -- slot, so put it back for the next one rather than asking for an
+    -- action that cannot be taken.
+    if MerchantSellOpen() then
+      UseReagentSlot(bag, slot)
       return
     end
-    UseReagentSlot(bag, slot)
+    if AuctionTakesReagent(bag, slot) then
+      PostReagentSlot(bag, slot)
+      return
+    end
+    pcall(ArmReagentUse, self, bag, slot)
     return
   end
   if mouseButton ~= "LeftButton" then
@@ -1256,6 +1322,13 @@ function ArmReagentUse(button, bag, slot)
     return
   end
   local overlay = button.ftkUseOverlay
+  if SlotTakesRightClick(bag, slot) then
+    if overlay then
+      overlay:SetAttribute("type2", nil)
+      overlay:Hide()
+    end
+    return
+  end
   if not overlay then
     overlay = CreateFrame("Button", nil, button, "SecureActionButtonTemplate")
     if not overlay then
@@ -1344,23 +1417,22 @@ function ArmReagentUse(button, bag, slot)
   overlay:Show()
 end
 
--- Hide the secure use button while the vendor buy tab is open. It sits
--- on the slot and its item action does not sell, so the right-click
--- never reaches the slot.
+-- Hide the secure use button while the vendor buy tab or the auction
+-- house is open. It sits on the slot and its item action neither sells
+-- nor lists, so the right-click never reaches the slot.
 local function SyncReagentMerchant()
   if LockedDown() then
     return
   end
-  local selling = MerchantSellOpen()
   local button
   for button in pairs(parkedReagentButtons) do
     local overlay = button.ftkUseOverlay
     if overlay and overlay.SetAttribute and overlay.Hide and overlay.Show then
-      if selling then
+      local bag, slot = ReagentBagAndSlot(button)
+      if bag and SlotTakesRightClick(bag, slot) then
         overlay:SetAttribute("type2", nil)
         overlay:Hide()
       else
-        local bag, slot = ReagentBagAndSlot(button)
         if bag then
           overlay:SetAttribute("type2", "item")
           overlay:SetAttribute("item2", bag .. " " .. slot)
@@ -1994,7 +2066,8 @@ events:SetScript("OnEvent", function(_, event)
     ApplyBagKey()
     return
   end
-  if event == "MERCHANT_SHOW" or event == "MERCHANT_CLOSED" then
+  if event == "MERCHANT_SHOW" or event == "MERCHANT_CLOSED"
+    or event == "AUCTION_HOUSE_SHOW" or event == "AUCTION_HOUSE_CLOSED" then
     HookMerchantSell()
     SyncReagentMerchant()
     if C_Timer and C_Timer.After then
@@ -2047,6 +2120,8 @@ FTK:RegisterModule({
     events:RegisterEvent("BAG_CONTAINER_UPDATE")
     events:RegisterEvent("MERCHANT_SHOW")
     events:RegisterEvent("MERCHANT_CLOSED")
+    events:RegisterEvent("AUCTION_HOUSE_SHOW")
+    events:RegisterEvent("AUCTION_HOUSE_CLOSED")
     HookMerchantSell()
     if C_Timer and C_Timer.After then
       C_Timer.After(0, function()

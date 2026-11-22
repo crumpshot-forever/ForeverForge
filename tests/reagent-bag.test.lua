@@ -755,6 +755,89 @@ check(slot2.ftkUseOverlay:GetAttribute("item2") == "5 2", "slot 2 keeps its own 
 check(slot1.ftkUseOverlay:GetFrameLevel() > slot1:GetFrameLevel(), "use button stays above the slot")
 check(type(slot1.ftkUseOverlay._wrap) == "string" and slot1.ftkUseOverlay._wrap:find("selectedTab == 2", 1, true) ~= nil, "buyback guard was installed")
 
+-- The auction house. Blizzard's bag slot hands a right-clicked item to the
+-- sell frame and never uses it. The use button only uses items, so it has to
+-- be off the slot, and the slot hands the item over itself.
+local unsellable = {}
+local sellChecksShowError = 0
+ItemLocation = {
+  CreateFromBagAndSlot = function(_self, bag, slot)
+    return {
+      bag = bag,
+      slot = slot,
+      IsValid = function()
+        return true
+      end,
+    }
+  end,
+}
+C_AuctionHouse = {
+  IsSellItemValid = function(location, displayError)
+    if displayError ~= false then
+      sellChecksShowError = sellChecksShowError + 1
+    end
+    return not unsellable[location.slot]
+  end,
+}
+AuctionHouseFrame = {
+  shown = false,
+  listing = false,
+  IsShown = function(self)
+    return self.shown == true
+  end,
+  IsListingAuctions = function(self)
+    return self.listing == true
+  end,
+  SetPostItem = function(_self, location)
+    record("post", location.bag, location.slot)
+  end,
+}
+
+local auctionEvents = merchantEvents and merchantEvents._events or {}
+check(auctionEvents.AUCTION_HOUSE_SHOW == true, "auction house open is registered")
+check(auctionEvents.AUCTION_HOUSE_CLOSED == true, "auction house close is registered")
+
+mixinLayout(combined)
+flushTimers()
+check(slot1.ftkUseOverlay:IsShown(), "use button is on before the auction house opens")
+
+-- Opening the auction house with the bags open does not lay them out again.
+AuctionHouseFrame.shown = true
+if merchantEvents then
+  merchantEvents:GetScript("OnEvent")(merchantEvents, "AUCTION_HOUSE_SHOW")
+  flushTimers()
+end
+check(not slot1.ftkUseOverlay:IsShown(), "opening the auction house takes the use button off the slot")
+slot1:GetScript("OnEnter")(slot1)
+check(not slot1.ftkUseOverlay:IsShown(), "pointing at a slot at the auction house leaves the use button off")
+resetCalls()
+click(slot1, "RightButton")
+check(saw("post", 5, 1), "right-click at the auction house puts reagent slot 1 in the sell frame")
+check(countNamed("use") == 0, "right-click at the auction house does not use the item")
+
+-- An item the auction house will not take is still used, as Blizzard's slot
+-- uses it, except on the listing page, which shows its own error.
+unsellable[2] = true
+slot2:GetScript("OnEnter")(slot2)
+check(slot2.ftkUseOverlay:IsShown(), "an item the auction house will not take keeps its use button")
+AuctionHouseFrame.listing = true
+slot2:GetScript("OnEnter")(slot2)
+check(not slot2.ftkUseOverlay:IsShown(), "on the listing page the use button is off")
+resetCalls()
+click(slot2, "RightButton")
+check(saw("post", 5, 2), "on the listing page right-click goes to the sell frame")
+AuctionHouseFrame.listing = false
+unsellable[2] = nil
+check(sellChecksShowError == 0, "checking a slot for the auction house prints no error")
+
+AuctionHouseFrame.shown = false
+if merchantEvents then
+  merchantEvents:GetScript("OnEvent")(merchantEvents, "AUCTION_HOUSE_CLOSED")
+  flushTimers()
+end
+check(slot1.ftkUseOverlay:IsShown(), "closing the auction house puts the use button back")
+check(slot1.ftkUseOverlay:GetAttribute("type2") == "item", "the use button uses items again after the auction house")
+
 if failures > 0 then
   error(failures .. " reagent bag check(s) failed")
 end
