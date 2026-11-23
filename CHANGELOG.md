@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- **Clean Bags.** Right-clicking a reagent-bag item away from a vendor, such as a Waylaid Crate, no longer prints a blocked action. The use button is put back over the slot when the pointer reaches it. A click that still lands on the slot leaves the item alone instead of asking for an action the game refuses.
+- **Clean Bags.** Right-clicking a reagent-bag item at the auction house picks it up, so a click on the sell slot lists it. Before, the click did nothing.
+
 ## 1.8.5
 
 - **Clean Bags.** Items in the reagent bag can be picked up, used, and sold to a vendor from the combined backpack. A click was using the backpack's bag id, and the use button sat under the slot after the bag resized. Right-click at a vendor sells the reagent-bag item from the slot itself.
