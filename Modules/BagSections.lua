@@ -823,18 +823,9 @@ local function AuctionTakesReagent(bag, slot)
   return ok and sellable == true
 end
 
-local function PostReagentSlot(bag, slot)
-  local auction = _G.AuctionHouseFrame
-  local location = ReagentItemLocation(bag, slot)
-  if not location or not auction or not auction.SetPostItem then
-    return
-  end
-  pcall(auction.SetPostItem, auction, location)
-end
-
 -- The slot, not the secure use button, takes this right-click: the
--- vendor sells the item and the auction house lists it. The use button's
--- item action does neither, so it is kept off the slot.
+-- vendor sells the item and the auction house takes it for a listing.
+-- The use button's item action does neither, so it is kept off the slot.
 local function SlotTakesRightClick(bag, slot)
   return MerchantSellOpen() or AuctionTakesReagent(bag, slot)
 end
@@ -965,7 +956,10 @@ local function OnReagentSlotClick(self, mouseButton)
     end
     -- At a vendor the secure use button swallows the click and does not
     -- sell, so the slot sells with its own bag id. At the auction house the
-    -- slot hands the item to the sell frame, as Blizzard's slot does.
+    -- slot picks the item up for the sell slot. Handing it over with
+    -- AuctionHouseFrame:SetPostItem would write the auction house's own
+    -- state from this addon, and every window opened after that builds the
+    -- bags under the mark: Blizzard's own bag clicks are then blocked.
     -- Anywhere else only the secure button may use the item: using it from
     -- here is a protected call the client blocks on this addon's own
     -- button. If the click landed here the button was not covering the
@@ -976,7 +970,7 @@ local function OnReagentSlotClick(self, mouseButton)
       return
     end
     if AuctionTakesReagent(bag, slot) then
-      PostReagentSlot(bag, slot)
+      PickupReagentSlot(bag, slot)
       return
     end
     pcall(ArmReagentUse, self, bag, slot)

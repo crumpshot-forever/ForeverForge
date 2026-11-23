@@ -757,7 +757,9 @@ check(type(slot1.ftkUseOverlay._wrap) == "string" and slot1.ftkUseOverlay._wrap:
 
 -- The auction house. Blizzard's bag slot hands a right-clicked item to the
 -- sell frame and never uses it. The use button only uses items, so it has to
--- be off the slot, and the slot hands the item over itself.
+-- be off the slot. The slot picks the item up for the sell slot: handing it
+-- over with SetPostItem from this addon marks the auction house's own state,
+-- and later bag clicks are blocked.
 local unsellable = {}
 local sellChecksShowError = 0
 ItemLocation = {
@@ -812,8 +814,9 @@ slot1:GetScript("OnEnter")(slot1)
 check(not slot1.ftkUseOverlay:IsShown(), "pointing at a slot at the auction house leaves the use button off")
 resetCalls()
 click(slot1, "RightButton")
-check(saw("post", 5, 1), "right-click at the auction house puts reagent slot 1 in the sell frame")
+check(saw("pickup", 5, 1), "right-click at the auction house picks reagent slot 1 up for the sell slot")
 check(countNamed("use") == 0, "right-click at the auction house does not use the item")
+check(countNamed("post") == 0, "the addon never hands the item to the auction house itself")
 
 -- An item the auction house will not take is still used, as Blizzard's slot
 -- uses it, except on the listing page, which shows its own error.
@@ -825,7 +828,8 @@ slot2:GetScript("OnEnter")(slot2)
 check(not slot2.ftkUseOverlay:IsShown(), "on the listing page the use button is off")
 resetCalls()
 click(slot2, "RightButton")
-check(saw("post", 5, 2), "on the listing page right-click goes to the sell frame")
+check(saw("pickup", 5, 2), "on the listing page right-click picks the item up")
+check(countNamed("post") == 0, "the listing page is not written from the addon either")
 AuctionHouseFrame.listing = false
 unsellable[2] = nil
 check(sellChecksShowError == 0, "checking a slot for the auction house prints no error")
