@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- **Ready Turn-ins.** Lists quests in your log that are ready to turn in, grouped by zone, with the turn-in NPC. The zone is the quest log header. The NPC comes from the quest text, or from Questie when that addon is installed. Click a row to track it. Optional chat line when one becomes ready (quests already ready at login stay quiet). Filter to this zone or to other zones. Configure, or `/ff turnins`.
+
 ## 1.8.5
 
 - **Clean Bags.** Items in the reagent bag can be picked up, used, and sold to a vendor from the combined backpack. A click was using the backpack's bag id, and the use button sat under the slot after the bag resized. Right-click at a vendor sells the reagent-bag item from the slot itself.
