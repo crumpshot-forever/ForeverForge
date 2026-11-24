@@ -372,6 +372,7 @@ function FTK:PrintHelp()
   self:Print("/ff minimap - show or hide the minimap button")
   self:Print("/ff modules - list features")
   self:Print("/ff talents - Talent Profiles: save, apply, or use the talent-window tabs")
+  self:Print("/ff turnins - quests ready to turn in, with the zone and NPC")
 end
 
 function FTK:OnSlash(msg)
