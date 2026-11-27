@@ -1,11 +1,18 @@
 --[[
-  Splits the combined backpack into labeled groups:
+  Splits the combined backpack into labeled groups. Default order:
+  the player's own categories first (BagCategoryStore.lua), then
   Quest Items, Munitions, Reagents, Crafting, one section per saved equipment set,
-  Gear, General, Junk (poor quality), then Empty.
+  Gear, General, Junk (poor quality), then Empty. The player's saved
+  section order wins over the default order. Small sections share a row
+  when they fit (BagSectionFlow.lua). A grip in the top left corner sets
+  the window size, and items beyond the window height scroll
+  (BagWindow.lua); scrolled-out items are hidden until combat starts.
 
   Only runs while the combined backpack is the bag UI.
   Item buttons stay Blizzard's buttons, so click, drag, and tooltips
   keep working. A secret item id is left in General.
+  Alt+right-click on an item opens the own-category menu, right-click on
+  a section label the move menu (BagCategoryMenu.lua).
 
   Blizzard's combined grid stops at the fourth bag. The reagent bag
   (the extra Forever slot, bag 5) is grouped into the same window on
@@ -35,13 +42,34 @@ if not FTK then
   error("ForeverForge: Core.lua must load before Modules/BagSections.lua")
 end
 
+-- The player's own categories: storage and the Alt+right-click menu.
+local Categories = FTK.BagCategoryStore
+local CategoryMenu = FTK.BagCategoryMenu
+if not Categories or not CategoryMenu then
+  error("ForeverForge: BagCategoryStore.lua and BagCategoryMenu.lua must load before Modules/BagSections.lua")
+end
+
+-- Sections side by side, and the scrolling, resizable window.
+local Flow = FTK.BagSectionFlow
+local BagWindow = FTK.BagWindow
+if not Flow or not BagWindow then
+  error("ForeverForge: BagSectionFlow.lua and BagWindow.lua must load before Modules/BagSections.lua")
+end
+
 local MODULE_ID = "BagSections"
 local ITEM_GAP_X = 5
 local ITEM_GAP_Y = 5
+local ITEM_LEFT = 9
 local HEADER_H = 20
+local HEADER_GAP = 4
 local SECTION_GAP = 8
+local BLOCK_GAP = 12
 local TOP_OFFSET = 68
 local BOTTOM_PAD = 28
+local WINDOW_MARGIN = 16
+local MIN_HEIGHT = 160
+local MIN_COLUMNS = 4
+local MAX_COLUMNS = 20
 
 local hooked = false
 local layingOut = false
@@ -64,6 +92,10 @@ local reagentReturnAfterCombat = false
 local DeferLayout
 local headerPool = {}
 local headerUsed = 0
+-- Scroll and size of the backpack window (BagWindow.lua), and the window
+-- height that shows every item, used when items are revealed for combat.
+local bagView
+local revealHeight
 
 local SECTIONS = {
   { id = "quest", title = "Quest Items" },
@@ -515,7 +547,20 @@ local function ReadItem(bag, slot)
   }
 end
 
+-- Item id of a backpack button at click time, for the category menu.
+-- Nil for an empty slot or a secret value.
+local function ItemIDOf(button)
+  local bag, slot = ButtonBagSlot(button)
+  local item = ReadItem(bag, slot)
+  return item and item.itemID
+end
+
 local function CategoryFor(item, bag, slot, setByItem, setBySlot)
+  -- An own category of the player wins over every default section.
+  local customID, customTitle = Categories:CategoryOf(item.itemID)
+  if customID then
+    return customID, customTitle
+  end
   if item.quest or IsQuestClass(ItemClass(item.itemID)) then
     return "quest"
   end
@@ -594,8 +639,27 @@ local function ParkReagentFrame(reagent)
   if reagent.EnableMouse then
     reagent:EnableMouse(false)
   end
+  -- A window clamped to the screen (bag movers such as ForeverMove clamp
+  -- every bag) stops at the screen corner. The parked window is unclamped;
+  -- UnparkReagentFrame gives it its own clamp back.
+  if reagent.IsClampedToScreen and reagent.SetClampedToScreen then
+    if reagent.ftkParkedClamp == nil then
+      local ok, clamped = pcall(reagent.IsClampedToScreen, reagent)
+      reagent.ftkParkedClamp = ok and clamped == true
+    end
+    pcall(reagent.SetClampedToScreen, reagent, false)
+  end
   reagent:ClearAllPoints()
   reagent:SetPoint("TOPLEFT", UIParent, "TOPLEFT", -4000, 4000)
+end
+
+-- Gives a parked reagent window the clamp it had before parking.
+local function UnparkReagentFrame(reagent)
+  if not reagent or reagent.ftkParkedClamp == nil or not reagent.SetClampedToScreen then
+    return
+  end
+  pcall(reagent.SetClampedToScreen, reagent, reagent.ftkParkedClamp)
+  reagent.ftkParkedClamp = nil
 end
 
 -- B hides the combined backpack and leaves every other open bag where
@@ -671,6 +735,11 @@ local function PaintOwnedReagentButton(button, bag, slot)
   end
   if button.SetHasItem then
     pcall(button.SetHasItem, button, texture)
+  end
+  -- The item button template shows its store highlight until Blizzard's
+  -- bag update hides it, and that update never runs on these buttons.
+  if button.BattlepayItemTexture then
+    button.BattlepayItemTexture:Hide()
   end
   if button.UpdateQuestItem and C_Container and C_Container.GetContainerItemQuestInfo then
     local questOk, questInfo = pcall(C_Container.GetContainerItemQuestInfo, bag, slot)
@@ -1098,6 +1167,10 @@ local function BagChrome()
   return bagChrome
 end
 
+-- Places the chrome over the backpack and shows it while the backpack
+-- shows. A layout of the closed backpack (PrimeCombined after a fight)
+-- places labels, reagent slots and grip but keeps them hidden: the chrome
+-- is a child of UIParent and does not hide with the backpack.
 local function ShowBagChrome(frame)
   local chrome = BagChrome()
   if frame then
@@ -1126,6 +1199,10 @@ local function ShowBagChrome(frame)
   end
   pcall(chrome.SetFrameLevel, chrome, level)
   chrome:EnableMouse(false)
+  if frame and not frame:IsShown() then
+    chrome:Hide()
+    return
+  end
   chrome:Show()
   pcall(chrome.SetFrameLevel, chrome, level)
 end
@@ -1438,6 +1515,7 @@ function ReturnReagentButtons()
     return
   end
   local reagent = ShownFrameForBag(ReagentBagId()) or HiddenFrameForBag(ReagentBagId())
+  UnparkReagentFrame(reagent)
   local button
   for button in pairs(parkedReagentButtons) do
     parkedReagentButtons[button] = nil
@@ -1477,6 +1555,32 @@ local function Place(button, parent, x, y)
   else
     parkedReagentButtons[button] = nil
     HideReagentUse(button)
+  end
+end
+
+-- Hides an item scrolled out of the visible area. RevealScrolledItems
+-- brings it back before combat.
+local function ScrollOut(button)
+  if DeferLayout(button) then
+    return
+  end
+  HideReagentUse(button)
+  button:Hide()
+end
+
+-- Combat lockdown starts after PLAYER_REGEN_DISABLED. From that event,
+-- every item goes back to its unscrolled place and shows, so no protected
+-- button stays hidden while Blizzard's grid is in charge.
+local function RevealScrolledItems()
+  local frame = CombinedFrame()
+  if not frame or not bagView or not revealHeight then
+    return
+  end
+  local revealed = bagView:Reveal(function(button, x, top)
+    Place(button, frame, x, -top)
+  end)
+  if revealed then
+    frame:SetHeight(revealHeight)
   end
 end
 
@@ -1622,6 +1726,7 @@ local function Layout(frame, allowHidden)
 
   for index = 1, #buttons do
     local button = buttons[index]
+    CategoryMenu:Attach(button, MODULE_ID, ItemIDOf)
     local bag, slot = ButtonBagSlot(button)
     local item = ReadItem(bag, slot)
     if not item then
@@ -1659,6 +1764,12 @@ local function Layout(frame, allowHidden)
   end
 
   local ordered = {}
+  -- By default own categories come first, in the order they were created.
+  local customIDs = Categories:OrderedGroupIDs(groupOrder, groups)
+  for index = 1, #customIDs do
+    SortEntries(groups[customIDs[index]].items)
+    ordered[#ordered + 1] = groups[customIDs[index]]
+  end
   local prefix = { "quest", "consumable", "munitions", "spellreagent", "reagent" }
   for index = 1, #prefix do
     local group = groups[prefix[index]]
@@ -1700,6 +1811,12 @@ local function Layout(frame, allowHidden)
   if empty and #empty.empties > 0 then
     ordered[#ordered + 1] = empty
   end
+  -- The player's section order wins over the default order built above.
+  Categories:SortGroups(ordered)
+  local orderedIDs = {}
+  for index = 1, #ordered do
+    orderedIDs[index] = ordered[index].id
+  end
 
   local columns = 10
   if frame.GetColumns then
@@ -1710,14 +1827,29 @@ local function Layout(frame, allowHidden)
     end
   end
   local buttonWidth, buttonHeight = ButtonSize(buttons[1])
-  local gridWidth = (columns * buttonWidth) + ((columns - 1) * ITEM_GAP_X)
-  local cursor = TOP_OFFSET
+  local metrics = {
+    columns = columns,
+    buttonWidth = buttonWidth,
+    buttonHeight = buttonHeight,
+    gapX = ITEM_GAP_X,
+    gapY = ITEM_GAP_Y,
+    headerHeight = HEADER_H,
+    headerGap = HEADER_GAP,
+    rowGap = SECTION_GAP,
+    blockGap = BLOCK_GAP,
+  }
+  local savedWidth, savedHeight = bagView:SavedSize()
+  if savedWidth then
+    metrics.columns = Flow.ColumnsForWidth(savedWidth, WINDOW_MARGIN, metrics, MIN_COLUMNS, MAX_COLUMNS)
+  end
+  local gridWidth = Flow.GridWidth(metrics.columns, metrics)
 
+  -- Labels first: a label can make its section wider than its items.
+  local sections = {}
+  local headers = {}
   for index = 1, #ordered do
     local group = ordered[index]
     local header = AcquireHeader(frame)
-    header:ClearAllPoints()
-    header:SetPoint("TOPLEFT", frame, "TOPLEFT", 9, -cursor)
     local count = #group.items
     if count == 0 then
       count = #group.empties
@@ -1737,11 +1869,10 @@ local function Layout(frame, allowHidden)
     if headerWidth > half then
       headerWidth = half
     end
-    header:SetWidth(headerWidth)
     if FTK.QuickDrop and FTK.QuickDrop.Attach then
       FTK.QuickDrop:Attach(header, group.items, "deposit", group.title, ButtonBagSlot)
     end
-    cursor = cursor + HEADER_H + 4
+    CategoryMenu:AttachHeader(header, MODULE_ID, group.id, group.title, orderedIDs)
 
     local placed = {}
     local itemIndex
@@ -1751,27 +1882,57 @@ local function Layout(frame, allowHidden)
     for itemIndex = 1, #group.empties do
       placed[#placed + 1] = group.empties[itemIndex]
     end
-    for itemIndex = 1, #placed do
-      local column = (itemIndex - 1) % columns
-      local row = math.floor((itemIndex - 1) / columns)
-      local x = 9 + (column * (buttonWidth + ITEM_GAP_X))
-      local y = -(cursor + (row * (buttonHeight + ITEM_GAP_Y)))
-      Place(placed[itemIndex], frame, x, y)
+    headers[index] = header
+    sections[index] = { count = #placed, headerWidth = headerWidth, buttons = placed }
+  end
+
+  -- The window is as tall as its content, at most the saved height and
+  -- the room on screen; the rest scrolls.
+  local blocks, contentHeight = Flow.Arrange(sections, metrics)
+  local fullHeight = math.max(TOP_OFFSET + contentHeight + SECTION_GAP + BOTTOM_PAD, MIN_HEIGHT)
+  local height = fullHeight
+  if savedHeight and savedHeight < height then
+    height = savedHeight
+  end
+  local available = bagView:AvailableHeight(frame)
+  if available and available < height then
+    height = available
+  end
+  if height < MIN_HEIGHT then
+    height = MIN_HEIGHT
+  end
+  bagView:Begin(BagChrome(), frame, frame, TOP_OFFSET, height - TOP_OFFSET - BOTTOM_PAD,
+    contentHeight + SECTION_GAP, buttonHeight + ITEM_GAP_Y)
+
+  for index = 1, #ordered do
+    local block = blocks[index]
+    local header = headers[index]
+    local section = sections[index]
+    local headerTop = bagView:Locate(block.y, HEADER_H)
+    header:ClearAllPoints()
+    if headerTop then
+      header:SetPoint("TOPLEFT", frame, "TOPLEFT", ITEM_LEFT + block.x, -headerTop)
+      header:SetWidth(math.min(section.headerWidth, block.width))
+    else
+      header:Hide()
     end
-    local rows = math.ceil(#placed / columns)
-    if rows < 1 then
-      rows = 1
+    for itemIndex = 1, #section.buttons do
+      local button = section.buttons[itemIndex]
+      local x, y = Flow.ItemOffset(block, itemIndex, metrics)
+      local top = bagView:Track(button, ITEM_LEFT + x, y, buttonHeight)
+      if top then
+        Place(button, frame, ITEM_LEFT + x, -top)
+      else
+        ScrollOut(button)
+      end
     end
-    cursor = cursor + (rows * buttonHeight) + ((rows - 1) * ITEM_GAP_Y) + SECTION_GAP
   end
 
   HideUnusedHeaders()
-  local height = cursor + BOTTOM_PAD
-  if height < 160 then
-    height = 160
-  end
+  revealHeight = fullHeight
   if not DeferLayout(frame) then
     frame:SetHeight(height)
+    frame:SetWidth(gridWidth + WINDOW_MARGIN + bagView:BarRoom())
     -- Remembering the positions must not abort the grouping. A failure
     -- here used to leave the pass marked in progress, so later opens
     -- kept Blizzard's grid under the group labels.
@@ -1889,6 +2050,13 @@ local function RestoreBlizzardLayout()
   end
   headerUsed = 0
   HideUnusedHeaders()
+  -- Blizzard's grid moves items but does not show hidden ones.
+  if bagView then
+    bagView:Reveal(function(button)
+      button:Show()
+    end)
+    bagView:HideWidgets()
+  end
   RestoreReagentFrame()
   if frame.UpdateFrameSize then
     pcall(frame.UpdateFrameSize, frame)
@@ -1972,6 +2140,7 @@ events:SetScript("OnEvent", function(_, event)
   HookBagOpen()
   if event == "PLAYER_REGEN_DISABLED" then
     layoutAfterCombat = true
+    RevealScrolledItems()
     HideCleanBagsChrome()
     return
   end
@@ -2048,10 +2217,20 @@ FTK.CleanBagRules = {
 
 FTK.CleanBagsRefresh = ScheduleLayout
 
+-- The backpack window is anchored at its bottom right, so the grip sits
+-- top left.
+bagView = BagWindow.NewView({
+  moduleID = MODULE_ID,
+  corner = "TOPLEFT",
+  minWidth = WINDOW_MARGIN + (MIN_COLUMNS * (37 + ITEM_GAP_X)),
+  minHeight = MIN_HEIGHT,
+  onChange = ScheduleLayout,
+})
+
 FTK:RegisterModule({
   id = MODULE_ID,
   name = "Clean Bags",
-  description = "Groups the combined backpack, including the reagent bag, into Quest Items, Munitions, Reagents, Crafting, equipment sets, Gear, General, Junk, and Empty.",
+  description = "Groups the combined backpack, including the reagent bag, into Quest Items, Munitions, Reagents, Crafting, equipment sets, Gear, General, Junk, and Empty. Alt+right-click an item to put it in a category of your own. Right-click a section label to move it up or down. Drag the top left grip to resize.",
   defaultEnabled = true,
   onEnable = function()
     InstallHook()
