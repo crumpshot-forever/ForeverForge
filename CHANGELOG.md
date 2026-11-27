@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.9.1
 
 - **Clean Bags.** In combat, B clicks the normal bag button, so the default bags open and an item can be used. That open no longer reports a blocked action.
 
