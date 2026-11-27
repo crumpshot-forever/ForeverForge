@@ -7,27 +7,24 @@
   Item buttons stay Blizzard's buttons, so click, drag, and tooltips
   keep working. A secret item id is left in General.
 
-  Blizzard's combined grid stops at the fourth bag. The reagent bag
-  (the extra Forever slot, bag 5) is grouped into the same window on
-  buttons this addon owns. Do not call OpenBag for that bag. That builds
-  Blizzard's reagent window (ContainerFrame6) under Forever Forge, which
-  is the taint mark. If that window is already open, it is parked off
-  screen and closed with B.
+  On a mouse client the combined grid still stops at the fourth bag.
+  The reagent bag (bag 5) is then drawn on buttons this addon owns.
+  Forever's gamepad bags, and retail once 12.1.7 ships, already put
+  that bag in the combined grid. Those buttons stay Blizzard's.
 
-  A secure button over each reagent item performs the right-click. That
-  uses the item, and sells it while a merchant buy tab is open. The
-  button sits on the slot, above the chrome, because a later resize
-  raises the slot over a sibling and the click never arrives. The slot
-  itself picks up and drops with its own bag id. The parent frame's id
-  is the backpack, and SetBagID on an addon button taints the click.
+  Either way the click stays ContainerFrameItemButton_OnClick. That
+  click sells while the merchant buy tab is open, and uses the item
+  otherwise. Initialize stores the bag id as the secure "bagid"
+  attribute. Replacing GetBagID or OnClick taints that click, so
+  UseContainerItem never sells. Do not call OpenBag for the reagent
+  bag. On this client that opens the combined backpack.
 
-  The combined frame and its item buttons are protected. Combat puts
-  those buttons back on Blizzard's grid, and our labels cannot follow,
-  so Clean Bags stays out of the fight: labels and reagent buttons hide,
-  and the backpack key is left as Blizzard's. Do not override that key,
-  and do not replace Blizzard's bag functions. Groups return when
-  combat ends. The use button over a reagent item is hidden after the
-  backpack closes, off the key press.
+  Grouping taints the combined frame. A tainted frame will not open
+  from this addon's own button during combat, but Blizzard's bag
+  button still can. B and the other bag keys click that button, so
+  the bags open in combat and an item can be used. Out of combat the
+  same click opens the combined backpack, and the groups are applied
+  once that click has returned.
 ]]
 
 local FTK = ForeverForge
@@ -52,16 +49,19 @@ local reagentOpenTried = false
 local layoutAfterCombat = false
 local layoutQueued = false
 local layoutFollowUp = false
-local overlayHideAfterCombat = {}
 local parkedReagentButtons = {}
 local reagentHolder
 local ownedReagentButtons = {}
 local layoutPoints
 local bagKey
+local combatBags
+local combatButtons = {}
+local combatHeaders = {}
+local combatHeaderUsed = 0
 local releaseBagKey = false
-local applyingBagKey = false
 local reagentReturnAfterCombat = false
 local DeferLayout
+local StoreFrameRef
 local headerPool = {}
 local headerUsed = 0
 
@@ -615,7 +615,14 @@ local function DismissReagentFrame()
     return
   end
   closingReagent = true
-  if CloseBag then
+  -- CloseBag(reagent) closes the whole combined backpack when that bag
+  -- is part of it. Hide the separate window directly.
+  local closesCombined = false
+  if ContainerFrameSettingsManager and ContainerFrameSettingsManager.IsUsingCombinedBags then
+    local ok, value = pcall(ContainerFrameSettingsManager.IsUsingCombinedBags, ContainerFrameSettingsManager, reagentId)
+    closesCombined = ok and value == true
+  end
+  if not closesCombined and CloseBag then
     pcall(CloseBag, reagentId)
   elseif reagent.Hide then
     reagent:Hide()
@@ -623,7 +630,6 @@ local function DismissReagentFrame()
   closingReagent = false
 end
 
-local HideReagentUse
 local ReturnReagentButtons
 
 local function RestoreReagentFrame()
@@ -638,8 +644,7 @@ local function RestoreReagentFrame()
   local index
   for index = 1, #buttons do
     local button = buttons[index]
-    HideReagentUse(button)
-    if button.SetParent then
+    if button.SetParent and not button.ftkOwnedReagent then
       pcall(button.SetParent, button, reagent)
     end
   end
@@ -680,288 +685,41 @@ local function PaintOwnedReagentButton(button, bag, slot)
   end
 end
 
-local function ReagentBagAndSlot(button)
-  if not button then
-    return nil, nil
-  end
-  local bag = PlainNumber(button.ftkBag)
-  local slot
-  if button.GetID then
-    local ok, value = pcall(button.GetID, button)
-    if ok then
-      slot = PlainNumber(value)
+-- Forever 1.60.1 and retail 12.1.7 take the container. Older retail
+-- takes the bag and the slot. IsCombined arrived with the container
+-- argument. A 3-arg call on the old function would store the frame
+-- as the bag id.
+local function InitializeReagentButton(button, holder, bag, slot)
+  if type(button.Initialize) ~= "function" then
+    if button.SetBagID then
+      button:SetBagID(bag)
     end
-  end
-  if not bag or not slot or slot < 1 then
-    return nil, nil
-  end
-  return bag, slot
-end
-
-local function ReagentItemLink(bag, slot)
-  if C_Container and C_Container.GetContainerItemLink then
-    local ok, link = pcall(C_Container.GetContainerItemLink, bag, slot)
-    if ok and type(link) == "string" and link ~= "" then
-      return link
+    button:SetID(slot)
+    if button.Show then
+      button:Show()
     end
+    return
   end
-  if GetContainerItemLink then
-    local ok, link = pcall(GetContainerItemLink, bag, slot)
-    if ok and type(link) == "string" and link ~= "" then
-      return link
-    end
-  end
-  if C_Container and C_Container.GetContainerItemInfo then
-    local ok, info = pcall(C_Container.GetContainerItemInfo, bag, slot)
+  local takesContainer = type(button.IsCombined) == "function"
+  if not takesContainer and type(debug) == "table" and type(debug.getinfo) == "function" then
+    local ok, info = pcall(debug.getinfo, button.Initialize, "u")
     if ok and type(info) == "table" then
-      return PlainString(info.hyperlink)
+      local params = PlainNumber(info.nparams)
+      if params and params >= 4 then
+        takesContainer = true
+      end
     end
   end
-  return nil
-end
-
-local function CursorHoldingItem()
-  if type(CursorHasItem) == "function" then
-    local ok, holding = pcall(CursorHasItem)
-    if ok and holding == true then
-      return true
-    end
-  end
-  if type(GetCursorInfo) == "function" then
-    local ok, kind = pcall(GetCursorInfo)
-    if ok and kind ~= nil and kind ~= false then
-      return true
-    end
-  end
-  return false
-end
-
-local function SpellWantsItem()
-  if type(SpellCanTargetItem) == "function" then
-    local ok, value = pcall(SpellCanTargetItem)
-    if ok and value == true then
-      return true
-    end
-  end
-  if type(SpellCanTargetItemID) == "function" then
-    local ok, value = pcall(SpellCanTargetItemID)
-    if ok and value == true then
-      return true
-    end
-  end
-  return false
-end
-
-local function MerchantFrameShown()
-  local merchant = _G.MerchantFrame
-  if not merchant or not merchant.IsShown then
-    return false
-  end
-  local ok, shown = pcall(merchant.IsShown, merchant)
-  return ok and shown == true
-end
-
--- Buyback is merchant tab 2. A right-click there must not sell.
-local function MerchantBuyback()
-  if not MerchantFrameShown() then
-    return false
-  end
-  local merchant = _G.MerchantFrame
-  return merchant.selectedTab == 2
-end
-
--- The buy tab is open. Right-click should sell, which the secure use
--- button does not do for this bag.
-local function MerchantSellOpen()
-  return MerchantFrameShown() and not MerchantBuyback()
-end
-
-local function PickupReagentSlot(bag, slot)
-  if C_Container and C_Container.PickupContainerItem then
-    pcall(C_Container.PickupContainerItem, bag, slot)
-    return
-  end
-  if PickupContainerItem then
-    pcall(PickupContainerItem, bag, slot)
+  if takesContainer then
+    button:Initialize(holder, bag, slot)
+  else
+    button:Initialize(bag, slot)
   end
 end
 
-local function UseReagentSlot(bag, slot)
-  if MerchantBuyback() then
-    return
-  end
-  if C_Container and C_Container.UseContainerItem then
-    pcall(C_Container.UseContainerItem, bag, slot)
-    return
-  end
-  if UseContainerItem then
-    pcall(UseContainerItem, bag, slot)
-  end
-end
-
-local function SplitReagentStack(button, bag, slot)
-  if type(IsModifiedClick) ~= "function" or not IsModifiedClick("SPLITSTACK") then
-    return false
-  end
-  if CursorHoldingItem() or type(OpenStackSplitFrame) ~= "function" then
-    return false
-  end
-  local count
-  local locked = false
-  if C_Container and C_Container.GetContainerItemInfo then
-    local ok, info = pcall(C_Container.GetContainerItemInfo, bag, slot)
-    if ok and type(info) == "table" then
-      count = PlainNumber(info.stackCount)
-      locked = info.isLocked == true
-    end
-  end
-  if locked or not count or count <= 1 then
-    return false
-  end
-  button.SplitStack = function(_, split)
-    split = PlainNumber(split)
-    if not split or split < 1 then
-      return
-    end
-    if C_Container and C_Container.SplitContainerItem then
-      pcall(C_Container.SplitContainerItem, bag, slot, split)
-    elseif SplitContainerItem then
-      pcall(SplitContainerItem, bag, slot, split)
-    end
-  end
-  pcall(OpenStackSplitFrame, count, button, "BOTTOMRIGHT", "TOPRIGHT")
-  return true
-end
-
--- Shift-click links the item. Control-click opens the dressing room.
--- A modified click must not also pick the item up.
-local function ModifiedReagentClick(bag, slot)
-  if CursorHoldingItem() or type(IsModifiedClick) ~= "function" or not IsModifiedClick() then
-    return false
-  end
-  if type(HandleModifiedItemClick) ~= "function" then
-    return false
-  end
-  local link = ReagentItemLink(bag, slot)
-  if not link then
-    return false
-  end
-  local ok, handled = pcall(HandleModifiedItemClick, link)
-  return ok and handled == true
-end
-
-local function OnReagentSlotEnter(self)
-  local bag, slot = ReagentBagAndSlot(self)
-  if not bag or not GameTooltip or not GameTooltip.SetBagItem then
-    return
-  end
-  GameTooltip:SetOwner(self, "ANCHOR_LEFT")
-  GameTooltip:SetBagItem(bag, slot)
-end
-
-local function OnReagentSlotLeave()
-  if GameTooltip and GameTooltip.Hide then
-    GameTooltip:Hide()
-  end
-end
-
-local function OnReagentSlotDrag(self)
-  local bag, slot = ReagentBagAndSlot(self)
-  if not bag then
-    return
-  end
-  PickupReagentSlot(bag, slot)
-end
-
--- The secure overlay is the frame that receives an unmodified right-click
--- when it is showing above the slot. The slot must not use the item too.
-local function ReagentUseCovered(button)
-  local overlay = button and button.ftkUseOverlay
-  if not overlay or not overlay.IsShown then
-    return false
-  end
-  local ok, shown = pcall(overlay.IsShown, overlay)
-  if not ok or shown ~= true then
-    return false
-  end
-  if overlay.GetParent then
-    local parentOk, parent = pcall(overlay.GetParent, overlay)
-    if not parentOk or parent ~= button then
-      return false
-    end
-  end
-  local overlayLevel = 0
-  local buttonLevel = 0
-  if overlay.GetFrameLevel then
-    local levelOk, value = pcall(overlay.GetFrameLevel, overlay)
-    if levelOk then
-      overlayLevel = PlainNumber(value) or 0
-    end
-  end
-  if button.GetFrameLevel then
-    local levelOk, value = pcall(button.GetFrameLevel, button)
-    if levelOk then
-      buttonLevel = PlainNumber(value) or 0
-    end
-  end
-  return overlayLevel > buttonLevel
-end
-
--- Left click picks up, places, or swaps. Right click uses, and sells
--- while the merchant is open. The secure overlay takes an unmodified
--- right-click when it is the frame under the cursor. This handler is
--- the path for a click that lands on the slot itself.
-local function OnReagentSlotClick(self, mouseButton)
-  local bag, slot = ReagentBagAndSlot(self)
-  if not bag then
-    return
-  end
-  if SplitReagentStack(self, bag, slot) then
-    return
-  end
-  if ModifiedReagentClick(bag, slot) then
-    return
-  end
-  if mouseButton == "RightButton" then
-    if type(IsModifiedClick) == "function" and IsModifiedClick() then
-      return
-    end
-    -- At a vendor the secure use button swallows the click and does not
-    -- sell. The slot sells with its own bag id. Outside a vendor the
-    -- secure button uses the item, so this slot must not use it too.
-    if not MerchantSellOpen() and ReagentUseCovered(self) then
-      return
-    end
-    UseReagentSlot(bag, slot)
-    return
-  end
-  if mouseButton ~= "LeftButton" then
-    return
-  end
-  if SpellWantsItem() then
-    UseReagentSlot(bag, slot)
-    return
-  end
-  PickupReagentSlot(bag, slot)
-end
-
-local function WireReagentSlot(button)
-  if not button or button.ftkReagentClicks then
-    return
-  end
-  button.ftkReagentClicks = true
-  button:RegisterForClicks("LeftButtonUp", "RightButtonUp")
-  button:RegisterForDrag("LeftButton")
-  button.OnClick = OnReagentSlotClick
-  button:SetScript("OnClick", OnReagentSlotClick)
-  button:SetScript("OnDragStart", OnReagentSlotDrag)
-  button:SetScript("OnReceiveDrag", OnReagentSlotDrag)
-  button:SetScript("OnEnter", OnReagentSlotEnter)
-  button:SetScript("OnLeave", OnReagentSlotLeave)
-end
-
--- Reagent slots are not part of the combined grid. Own buttons carry
--- them. OpenBag(reagent) builds ContainerFrame6 on this addon's stack.
+-- Reagent slots that the combined grid did not draw. OpenBag(reagent)
+-- opens the combined backpack on this client, so these buttons are
+-- created here instead.
 local function OwnedReagentButtons(combined)
   local bag = ReagentBagId()
   local count = ReagentSlotCount()
@@ -976,6 +734,13 @@ local function OwnedReagentButtons(combined)
     reagentHolder = CreateFrame("Frame", "ForeverForgeReagentHolder", UIParent)
     reagentHolder:SetSize(1, 1)
     reagentHolder:SetPoint("TOPLEFT", UIParent, "TOPLEFT", -3000, 3000)
+    reagentHolder:SetID(bag)
+    reagentHolder.GetBagID = function()
+      return ReagentBagId()
+    end
+    reagentHolder.IsCombinedBagContainer = function()
+      return false
+    end
     reagentHolder:Hide()
   end
   local width, height = 37, 37
@@ -1013,15 +778,16 @@ local function OwnedReagentButtons(combined)
       end
     end
     if button then
-      button.ftkBag = bag
-      button:SetID(slot)
-      -- The template's GetBagID follows the parent, or a bag id written
-      -- by SetBagID. SetBagID taints an addon button, and the parent id
-      -- is not this slot until the chrome is tagged. Own the method.
-      button.GetBagID = function(self)
-        return self.ftkBag
+      button.ftkOwnedReagent = true
+      local overlay = button.ftkUseOverlay
+      if overlay and overlay.Hide then
+        overlay:Hide()
       end
-      WireReagentSlot(button)
+      -- Forever 1.60 and retail 12.1.7: Initialize(container, bag, slot).
+      -- Older retail: Initialize(bag, slot). The container is only asked
+      -- whether the slot is combined. The bag id has to go through
+      -- SetBagID so the template click stays untainted and can sell.
+      InitializeReagentButton(button, reagentHolder, bag, slot)
       button:SetSize(width, height)
       PaintOwnedReagentButton(button, bag, slot)
       shown[#shown + 1] = button
@@ -1034,12 +800,32 @@ local function OwnedReagentButtons(combined)
   return shown
 end
 
+local function HideOwnedReagentButtons()
+  local index
+  for index = 1, #ownedReagentButtons do
+    local button = ownedReagentButtons[index]
+    if button then
+      parkedReagentButtons[button] = nil
+      if reagentHolder and button.SetParent then
+        pcall(button.SetParent, button, reagentHolder)
+      end
+      if button.Hide then
+        button:Hide()
+      end
+    end
+  end
+end
+
 local function AttachReagentButtons(combined, buttons)
   local reagentId = ReagentBagId()
   if not reagentId then
     return
   end
   if ButtonsIncludeBag(buttons, reagentId) then
+    -- The combined grid already has this bag. A second set of slots
+    -- would sell the wrong stack, and reparenting Blizzard's buttons
+    -- is what blocks the backpack during combat.
+    HideOwnedReagentButtons()
     local already = ShownFrameForBag(reagentId)
     if already and already ~= combined then
       ParkReagentFrame(already)
@@ -1057,9 +843,9 @@ local function AttachReagentButtons(combined, buttons)
   end
 end
 
--- Labels and reagent buttons live on our own frame, not on the
+-- Labels and owned reagent buttons live on our own frame, not on the
 -- protected backpack. Hiding that frame in combat does not call Show,
--- Raise, or SetSize on the backpack, so opening the bag still works.
+-- Raise, or SetSize on the backpack.
 -- The backpack is a raised top-level window. A sibling at the same
 -- strata stays under its background, so the labels are one strata up.
 local bagChrome
@@ -1094,6 +880,9 @@ local function BagChrome()
   end
   bagChrome.GetBagID = function()
     return ReagentBagId()
+  end
+  bagChrome.IsCombinedBagContainer = function()
+    return false
   end
   return bagChrome
 end
@@ -1214,239 +1003,21 @@ DeferLayout = function()
   return true
 end
 
-local MODIFIED_PREFIX = {
-  "shift-",
-  "ctrl-",
-  "alt-",
-  "ctrl-shift-",
-  "alt-shift-",
-  "alt-ctrl-",
-  "alt-ctrl-shift-",
-}
-
-local function QueueOverlayHide(overlay)
-  if not overlay then
-    return
-  end
-  if LockedDown() then
-    overlayHideAfterCombat[#overlayHideAfterCombat + 1] = overlay
-    return
-  end
-  overlay:Hide()
-end
-
-local function HideQueuedOverlays()
-  if LockedDown() then
-    return
-  end
-  local index
-  for index = 1, #overlayHideAfterCombat do
-    local overlay = overlayHideAfterCombat[index]
-    overlayHideAfterCombat[index] = nil
-    if overlay and overlay.Hide then
-      overlay:Hide()
-    end
-  end
-end
-
--- Right-click has to stay secure. An addon button's own UseContainerItem
--- call is blocked, so a consumable never fires and a vendor never buys
--- it. The overlay is a child of the slot. A sibling left under the slot
--- when the bag resizes never sees the click. Left click passes through
--- so the slot can pick up. A modified right-click is handed to the slot
--- for link, dress-up, and split. Buyback must not sell.
-local REAGENT_USE_PRE = [[
-if button ~= "RightButton" or down then
-  return
-end
-local merchant = MerchantFrame
-if merchant and merchant:IsShown() and merchant.selectedTab == 2 then
-  return false
-end
-]]
-
-local function ArmReagentUse(button, bag, slot)
-  if LockedDown() then
-    return
-  end
-  bag = PlainNumber(bag)
-  slot = PlainNumber(slot)
-  if not bag or not slot then
-    return
-  end
-  local overlay = button.ftkUseOverlay
-  if not overlay then
-    overlay = CreateFrame("Button", nil, button, "SecureActionButtonTemplate")
-    if not overlay then
-      return
-    end
-    button.ftkUseOverlay = overlay
-    overlay:RegisterForClicks("RightButtonUp")
-    overlay:SetAttribute("type2", "item")
-    local index
-    for index = 1, #MODIFIED_PREFIX do
-      local prefix = MODIFIED_PREFIX[index]
-      overlay:SetAttribute(prefix .. "type2", "click")
-      overlay:SetAttribute(prefix .. "clickbutton2", button)
-    end
-    if overlay.SetPassThroughButtons then
-      pcall(overlay.SetPassThroughButtons, overlay, "LeftButton")
-    end
-    if overlay.SetPropagateMouseMotion then
-      pcall(overlay.SetPropagateMouseMotion, overlay, true)
-    elseif not overlay.ftkTooltipHook and overlay.HookScript then
-      overlay.ftkTooltipHook = true
-      overlay:HookScript("OnEnter", function(self)
-        OnReagentSlotEnter(self:GetParent())
-      end)
-      overlay:HookScript("OnLeave", OnReagentSlotLeave)
-    end
-    if button.HookScript and not button.ftkUseOverlayHook then
-      button.ftkUseOverlayHook = true
-      button:HookScript("OnHide", function(self)
-        local use = self.ftkUseOverlay
-        if not use or not (C_Timer and C_Timer.After) then
-          return
-        end
-        -- B hides this button from the secure key press. Hide the
-        -- overlay on the next frame, off that press.
-        C_Timer.After(0, function()
-          if self:IsShown() then
-            return
-          end
-          QueueOverlayHide(use)
-        end)
-      end)
-    end
-    if SecureHandlerWrapScript and not overlay.ftkUseWrapped then
-      local wrapped = pcall(SecureHandlerWrapScript, overlay, "OnClick", overlay, REAGENT_USE_PRE)
-      if wrapped then
-        overlay.ftkUseWrapped = true
-      end
-    end
-  end
-  if overlay.GetParent and overlay.SetParent then
-    local parentOk, parent = pcall(overlay.GetParent, overlay)
-    if not parentOk or parent ~= button then
-      pcall(overlay.SetParent, overlay, button)
-    end
-  end
-  overlay:SetAttribute("type2", "item")
-  overlay:SetAttribute("item2", bag .. " " .. slot)
-  overlay:SetAttribute("bag2", bag)
-  overlay:SetAttribute("slot2", slot)
-  local strata = "MEDIUM"
-  if button.GetFrameStrata then
-    local ok, value = pcall(button.GetFrameStrata, button)
-    if ok and type(value) == "string" and value ~= "" then
-      strata = value
-    end
-  end
-  overlay:SetFrameStrata(strata)
-  local level = 1
-  if button.GetFrameLevel then
-    level = PlainNumber(button:GetFrameLevel()) or 1
-  end
-  local top = level + 40
-  if top > 10000 then
-    top = 10000
-  end
-  if top <= level then
-    top = level
-  end
-  overlay:SetFrameLevel(top)
-  overlay:ClearAllPoints()
-  overlay:SetAllPoints(button)
-  if overlay.EnableMouse then
-    overlay:EnableMouse(true)
-  end
-  overlay:Show()
-end
-
--- Hide the secure use button while the vendor buy tab is open. It sits
--- on the slot and its item action does not sell, so the right-click
--- never reaches the slot.
-local function SyncReagentMerchant()
-  if LockedDown() then
-    return
-  end
-  local selling = MerchantSellOpen()
-  local button
-  for button in pairs(parkedReagentButtons) do
-    local overlay = button.ftkUseOverlay
-    if overlay and overlay.SetAttribute and overlay.Hide and overlay.Show then
-      if selling then
-        overlay:SetAttribute("type2", nil)
-        overlay:Hide()
-      else
-        local bag, slot = ReagentBagAndSlot(button)
-        if bag then
-          overlay:SetAttribute("type2", "item")
-          overlay:SetAttribute("item2", bag .. " " .. slot)
-          overlay:SetAttribute("bag2", bag)
-          overlay:SetAttribute("slot2", slot)
-        end
-        if button.IsShown then
-          local ok, shown = pcall(button.IsShown, button)
-          if ok and shown == true then
-            overlay:Show()
-          end
-        end
-      end
-    end
-  end
-end
-
-local function HookMerchantSell()
-  local merchant = _G.MerchantFrame
-  if not merchant or merchant.ftkReagentSellHook or not merchant.HookScript then
-    return
-  end
-  merchant.ftkReagentSellHook = true
-  merchant:HookScript("OnShow", function()
-    SyncReagentMerchant()
-  end)
-  merchant:HookScript("OnHide", function()
-    SyncReagentMerchant()
-  end)
-end
-
--- The bag raises itself when its height changes, and the chrome follows.
--- Re-seat every use button after that, or the slot covers it.
-local function RaiseReagentOverlays()
-  if LockedDown() then
-    return
-  end
-  local button
-  for button in pairs(parkedReagentButtons) do
-    local bag, slot = ReagentBagAndSlot(button)
-    if bag then
-      pcall(ArmReagentUse, button, bag, slot)
-    end
-  end
-end
-
-function HideReagentUse(button)
-  QueueOverlayHide(button and button.ftkUseOverlay)
-end
-
--- Reagent buttons are moved onto the combined backpack. Put them back
--- on their own frame once that backpack is closed, or a later combat
--- open still shows them where the groups last left them.
+-- Owned reagent buttons go back to their hidden holder when the
+-- backpack closes. Blizzard's own reagent buttons stay on the
+-- combined frame. Moving those is what blocks the bag in combat.
 function ReturnReagentButtons()
   if LockedDown() then
     return
   end
-  local reagent = ShownFrameForBag(ReagentBagId()) or HiddenFrameForBag(ReagentBagId())
   local button
   for button in pairs(parkedReagentButtons) do
     parkedReagentButtons[button] = nil
-    HideReagentUse(button)
     if button.ftkOwnedReagent and reagentHolder and button.SetParent then
       pcall(button.SetParent, button, reagentHolder)
-      button:Hide()
-    elseif reagent and button.SetParent then
-      pcall(button.SetParent, button, reagent)
+      if button.Hide then
+        button:Hide()
+      end
     end
   end
 end
@@ -1455,10 +1026,9 @@ local function Place(button, parent, x, y)
   if DeferLayout(button) then
     return
   end
-  local bag, slot = ButtonBagSlot(button)
-  local reagentId = ReagentBagId()
-  local reagentButton = bag and reagentId and bag == reagentId
-  if reagentButton and button.SetParent then
+  local bag = ButtonBagSlot(button)
+  local ownedReagent = button.ftkOwnedReagent and bag == ReagentBagId()
+  if ownedReagent and button.SetParent then
     local host = BagChrome()
     local ok, current = pcall(button.GetParent, button)
     if not ok or current ~= host then
@@ -1471,77 +1041,86 @@ local function Place(button, parent, x, y)
   if layoutPoints then
     layoutPoints[#layoutPoints + 1] = { button = button, x = x, y = y }
   end
-  if reagentButton and slot then
+  if ownedReagent then
     parkedReagentButtons[button] = true
-    pcall(ArmReagentUse, button, bag, slot)
-  else
-    parkedReagentButtons[button] = nil
-    HideReagentUse(button)
-  end
-end
-
--- The key press stays inside this secure snippet. Showing the combined
--- backpack from here is allowed in combat. Clicking the normal backpack
--- button is not: that button is unprotected, so the click is blocked and
--- the bag never opens. Returning false cancels the button's own click.
-local BAG_KEY_PRE = [[
-if not down then
-  return false
-end
-local bags = self:GetFrameRef("bags")
-if not bags then
-  return false
-end
-if bags:IsShown() then
-  bags:Hide()
-  return false
-end
-bags:Show()
-local count = self:GetAttribute("n")
-if count and count >= 1 then
-  local height = self:GetAttribute("h")
-  if height then
-    bags:SetHeight(height)
-  end
-  local index
-  for index = 1, count do
-    local item = self:GetFrameRef("b" .. index)
-    local x = self:GetAttribute("x" .. index)
-    local y = self:GetAttribute("y" .. index)
-    if item and x ~= nil and y ~= nil then
-      item:SetParent(bags)
-      item:ClearAllPoints()
-      item:SetPoint("TOPLEFT", bags, "TOPLEFT", x, y)
-      item:Show()
+    local overlay = button.ftkUseOverlay
+    if overlay and overlay.Hide then
+      overlay:Hide()
     end
   end
 end
-bags:Raise()
-return false
-]]
+
+-- B is sent to Blizzard's bag button. That button can open the bags
+-- during combat. This addon's own button cannot, once grouping has
+-- tainted the combined frame.
+local BAG_BINDINGS = {
+  "TOGGLEBACKPACK",
+  "OPENALLBAGS",
+  "TOGGLEREAGENTBAG",
+  "TOGGLEBAG1",
+  "TOGGLEBAG2",
+  "TOGGLEBAG3",
+  "TOGGLEBAG4",
+}
+
+local BAG_BINDING_BUTTON = {
+  TOGGLEBACKPACK = "MainMenuBarBackpackButton",
+  OPENALLBAGS = "MainMenuBarBackpackButton",
+  TOGGLEREAGENTBAG = "CharacterReagentBag0Slot",
+  TOGGLEBAG1 = "CharacterBag0Slot",
+  TOGGLEBAG2 = "CharacterBag1Slot",
+  TOGGLEBAG3 = "CharacterBag2Slot",
+  TOGGLEBAG4 = "CharacterBag3Slot",
+}
+
+local CombatBagsFrame
+
+local function BindingButton(binding)
+  local name = BAG_BINDING_BUTTON[binding]
+  if type(name) == "string" and _G[name] then
+    return name
+  end
+  if _G.MainMenuBarBackpackButton then
+    return "MainMenuBarBackpackButton"
+  end
+  return nil
+end
 
 local ClearBagKey
 local ApplyBagKey
 
+local function PublishBagRefs(button)
+  if not button or LockedDown() then
+    return
+  end
+  local bags = CombinedFrame()
+  if bags then
+    StoreFrameRef(button, "bags", bags)
+  end
+  if combatBags then
+    StoreFrameRef(button, "combat", combatBags)
+  end
+end
+
+local function RememberCombinedFrame()
+  if LockedDown() or not bagKey then
+    return
+  end
+  PublishBagRefs(bagKey)
+end
+
 local function EnsureBagKey()
-  if bagKey or LockedDown() or not SecureHandlerWrapScript then
+  if bagKey or LockedDown() then
     return bagKey
   end
-  local button = CreateFrame("Button", "ForeverForgeBagKey", UIParent, "SecureActionButtonTemplate")
+  local button = CreateFrame("Button", "ForeverForgeBagKey", UIParent)
   if not button then
     return nil
   end
-  button:SetAttribute("useOnKeyDown", true)
-  button:RegisterForClicks("AnyDown", "AnyUp")
   button:EnableMouse(false)
   button:SetSize(1, 1)
   button:SetPoint("TOPLEFT", UIParent, "TOPLEFT", -2000, 2000)
   button:Show()
-  local wrapped = pcall(SecureHandlerWrapScript, button, "OnClick", button, BAG_KEY_PRE)
-  if not wrapped then
-    button:Hide()
-    return nil
-  end
   bagKey = button
   return bagKey
 end
@@ -1561,14 +1140,41 @@ ClearBagKey = function()
   releaseBagKey = false
 end
 
--- The backpack key stays Blizzard's. A previous build overrode it to
--- keep Clean Bags up in combat, and combat then drew Blizzard's grid
--- on top of our labels. Clear that override if it is still installed.
 ApplyBagKey = function()
-  ClearBagKey()
+  if not FTK:IsEnabled(MODULE_ID) or not UsingCombinedBags() then
+    ClearBagKey()
+    return
+  end
+  if LockedDown() or not GetBindingKey or not SetOverrideBindingClick then
+    return
+  end
+  local key = EnsureBagKey()
+  if not key then
+    return
+  end
+  CombatBagsFrame()
+  RememberCombinedFrame()
+  if ClearOverrideBindings then
+    pcall(ClearOverrideBindings, key)
+  end
+  local index
+  for index = 1, #BAG_BINDINGS do
+    local binding = BAG_BINDINGS[index]
+    local target = BindingButton(binding)
+    if target then
+      local first, second = GetBindingKey(binding)
+      if type(first) == "string" and first ~= "" then
+        pcall(SetOverrideBindingClick, key, true, first, target, "LeftButton")
+      end
+      if type(second) == "string" and second ~= "" then
+        pcall(SetOverrideBindingClick, key, true, second, target, "LeftButton")
+      end
+    end
+  end
 end
 
-local function StoreFrameRef(owner, label, ref)
+
+StoreFrameRef = function(owner, label, ref)
   if SecureHandlerSetFrameRef then
     SecureHandlerSetFrameRef(owner, label, ref)
   elseif owner.SetFrameRef then
@@ -1577,6 +1183,317 @@ local function StoreFrameRef(owner, label, ref)
 end
 
 local function RememberGroupedLayout()
+end
+
+local function InventoryBagIds()
+  local last = 4
+  local reagent = ReagentBagId()
+  if reagent and reagent > last then
+    last = reagent
+  end
+  local ids = {}
+  local index
+  for index = 0, last do
+    ids[#ids + 1] = index
+  end
+  return ids
+end
+
+CombatBagsFrame = function()
+  if combatBags then
+    return combatBags
+  end
+  if LockedDown() then
+    return nil
+  end
+  local frame = CreateFrame("Frame", "ForeverForgeCombatBags", UIParent)
+  if not frame then
+    return nil
+  end
+  frame:SetFrameStrata("DIALOG")
+  frame:SetSize(429, 200)
+  frame:SetPoint("RIGHT", UIParent, "RIGHT", -40, 40)
+  frame:EnableMouse(true)
+  local bg = frame:CreateTexture(nil, "BACKGROUND")
+  bg:SetAllPoints()
+  if bg.SetColorTexture then
+    bg:SetColorTexture(0.07, 0.05, 0.02, 0.94)
+  end
+  local title = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+  title:SetPoint("TOPLEFT", 12, -12)
+  title:SetText("Clean Bags")
+  frame:Hide()
+  if UISpecialFrames then
+    local found = false
+    local index
+    for index = 1, #UISpecialFrames do
+      if UISpecialFrames[index] == "ForeverForgeCombatBags" then
+        found = true
+      end
+    end
+    if not found then
+      UISpecialFrames[#UISpecialFrames + 1] = "ForeverForgeCombatBags"
+    end
+  end
+  combatBags = frame
+  if bagKey then
+    StoreFrameRef(bagKey, "combat", frame)
+  end
+  return frame
+end
+
+local function CombatButton(parent, index)
+  local button = combatButtons[index]
+  if button then
+    return button
+  end
+  if LockedDown() then
+    return nil
+  end
+  button = CreateFrame("Button", nil, parent, "SecureActionButtonTemplate")
+  if not button then
+    return nil
+  end
+  button:SetSize(36, 36)
+  button:RegisterForClicks("AnyUp")
+  local icon = button:CreateTexture(nil, "ARTWORK")
+  icon:SetAllPoints()
+  button.icon = icon
+  local count = button:CreateFontString(nil, "OVERLAY", "NumberFontNormal")
+  count:SetPoint("BOTTOMRIGHT", -1, 2)
+  button.count = count
+  button:HookScript("OnEnter", function(self)
+    if not self.ftkBag or not self.ftkSlot or not GameTooltip or not GameTooltip.SetBagItem then
+      return
+    end
+    GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+    GameTooltip:SetBagItem(self.ftkBag, self.ftkSlot)
+  end)
+  button:HookScript("OnLeave", function()
+    if GameTooltip and GameTooltip.Hide then
+      GameTooltip:Hide()
+    end
+  end)
+  combatButtons[index] = button
+  return button
+end
+
+local function CombatHeader(parent)
+  combatHeaderUsed = combatHeaderUsed + 1
+  local header = combatHeaders[combatHeaderUsed]
+  if not header then
+    header = CreateFrame("Frame", nil, parent)
+    header:SetHeight(HEADER_H)
+    local label = header:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    label:SetPoint("LEFT", 8, 0)
+    label:SetJustifyH("LEFT")
+    label:SetTextColor(0.95, 0.82, 0.4)
+    header.label = label
+    header:EnableMouse(false)
+    combatHeaders[combatHeaderUsed] = header
+  end
+  header:Show()
+  return header
+end
+
+-- The combined backpack cannot be shown in combat after grouping.
+-- This window is ours, so the bag key can open it, and each slot is a
+-- secure item button so a click uses that item.
+local function RefreshCombatMirror()
+  if LockedDown() or not FTK:IsEnabled(MODULE_ID) or not UsingCombinedBags() then
+    return
+  end
+  local frame = CombatBagsFrame()
+  if not frame then
+    return
+  end
+  local setByItem, setBySlot = EquipmentSetMaps()
+  local groups = {}
+  local groupOrder = {}
+  local function Group(id, title)
+    local group = groups[id]
+    if not group then
+      group = { id = id, title = title, items = {} }
+      groups[id] = group
+      groupOrder[#groupOrder + 1] = id
+    end
+    return group
+  end
+  local index
+  for index = 1, #SECTIONS do
+    Group(SECTIONS[index].id, SECTIONS[index].title)
+  end
+  local bags = InventoryBagIds()
+  local bagIndex
+  for bagIndex = 1, #bags do
+    local bag = bags[bagIndex]
+    local slots = 0
+    if C_Container and C_Container.GetContainerNumSlots then
+      local ok, count = pcall(C_Container.GetContainerNumSlots, bag)
+      slots = ok and PlainNumber(count) or 0
+    end
+    local slot
+    if slots and slots > 0 then
+      for slot = 1, slots do
+        local item = ReadItem(bag, slot)
+        if item then
+          local icon, stack
+          if C_Container.GetContainerItemInfo then
+            local infoOk, info = pcall(C_Container.GetContainerItemInfo, bag, slot)
+            if infoOk and type(info) == "table" then
+              icon = info.iconFileID
+              stack = PlainNumber(info.stackCount)
+            end
+          end
+          local category, setTitle = CategoryFor(item, bag, slot, setByItem, setBySlot)
+          local title = setTitle or "General"
+          if category == "quest" then
+            title = "Quest Items"
+          elseif category == "consumable" then
+            title = "Consumables"
+          elseif category == "munitions" then
+            title = "Munitions"
+          elseif category == "junk" then
+            title = "Junk"
+          elseif category == "spellreagent" then
+            title = "Reagents"
+          elseif category == "reagent" then
+            title = "Crafting"
+          elseif category == "gear" then
+            title = "Gear"
+          end
+          local group = Group(category, title)
+          group.items[#group.items + 1] = {
+            bag = bag,
+            slot = slot,
+            itemID = item.itemID,
+            quality = item.quality or 0,
+            icon = icon,
+            count = stack or 0,
+          }
+        end
+      end
+    end
+  end
+  local function SortEntries(list)
+    table.sort(list, function(a, b)
+      if a.quality ~= b.quality then
+        return a.quality > b.quality
+      end
+      return a.itemID < b.itemID
+    end)
+  end
+  local ordered = {}
+  local prefix = { "quest", "consumable", "munitions", "spellreagent", "reagent" }
+  for index = 1, #prefix do
+    local group = groups[prefix[index]]
+    if group and #group.items > 0 then
+      SortEntries(group.items)
+      ordered[#ordered + 1] = group
+    end
+  end
+  local setIDs = {}
+  for index = 1, #groupOrder do
+    local id = groupOrder[index]
+    if id:find("^set:") and groups[id] and #groups[id].items > 0 then
+      setIDs[#setIDs + 1] = id
+    end
+  end
+  table.sort(setIDs, function(a, b)
+    return groups[a].title < groups[b].title
+  end)
+  for index = 1, #setIDs do
+    SortEntries(groups[setIDs[index]].items)
+    ordered[#ordered + 1] = groups[setIDs[index]]
+  end
+  local gear = groups.gear
+  if gear and #gear.items > 0 then
+    SortEntries(gear.items)
+    ordered[#ordered + 1] = gear
+  end
+  local general = groups.other
+  if general and #general.items > 0 then
+    SortEntries(general.items)
+    ordered[#ordered + 1] = general
+  end
+  local junk = groups.junk
+  if junk and #junk.items > 0 then
+    SortEntries(junk.items)
+    ordered[#ordered + 1] = junk
+  end
+
+  local columns = 10
+  local buttonSize = 36
+  local gridWidth = (columns * buttonSize) + ((columns - 1) * ITEM_GAP_X)
+  local cursor = 36
+  local buttonIndex = 0
+  combatHeaderUsed = 0
+  for index = 1, #ordered do
+    local group = ordered[index]
+    local header = CombatHeader(frame)
+    header:ClearAllPoints()
+    header:SetPoint("TOPLEFT", frame, "TOPLEFT", 9, -cursor)
+    header.label:SetText(group.title .. " (" .. #group.items .. ")")
+    local textWidth = 120
+    if header.label.GetStringWidth then
+      local widthOk, value = pcall(header.label.GetStringWidth, header.label)
+      if widthOk and type(value) == "number" and value == value and value > 0 then
+        textWidth = value
+      end
+    end
+    local headerWidth = textWidth + 20
+    if headerWidth > gridWidth then
+      headerWidth = gridWidth
+    end
+    header:SetWidth(headerWidth)
+    cursor = cursor + HEADER_H + 4
+    local itemIndex
+    for itemIndex = 1, #group.items do
+      buttonIndex = buttonIndex + 1
+      local entry = group.items[itemIndex]
+      local button = CombatButton(frame, buttonIndex)
+      if button then
+        button.ftkBag = entry.bag
+        button.ftkSlot = entry.slot
+        button:SetAttribute("type", "item")
+        button:SetAttribute("item", entry.bag .. " " .. entry.slot)
+        if button.icon and button.icon.SetTexture then
+          button.icon:SetTexture(entry.icon)
+        end
+        if button.count and button.count.SetText then
+          if entry.count > 1 then
+            button.count:SetText(entry.count)
+          else
+            button.count:SetText("")
+          end
+        end
+        local column = (itemIndex - 1) % columns
+        local row = math.floor((itemIndex - 1) / columns)
+        local x = 9 + (column * (buttonSize + ITEM_GAP_X))
+        local y = -(cursor + (row * (buttonSize + ITEM_GAP_Y)))
+        button:ClearAllPoints()
+        button:SetPoint("TOPLEFT", frame, "TOPLEFT", x, y)
+        button:Show()
+      end
+    end
+    local rows = math.ceil(#group.items / columns)
+    if rows < 1 then
+      rows = 1
+    end
+    cursor = cursor + (rows * buttonSize) + ((rows - 1) * ITEM_GAP_Y) + SECTION_GAP
+  end
+  local extra
+  for extra = combatHeaderUsed + 1, #combatHeaders do
+    combatHeaders[extra]:Hide()
+  end
+  for extra = buttonIndex + 1, #combatButtons do
+    combatButtons[extra]:Hide()
+  end
+  local height = cursor + 16
+  if height < 80 then
+    height = 80
+  end
+  frame:SetSize(gridWidth + 18, height)
 end
 
 local function Layout(frame, allowHidden)
@@ -1778,13 +1695,11 @@ local function Layout(frame, allowHidden)
     pcall(RememberGroupedLayout, frame, height)
   end
   -- The bag can raise itself while it resizes. Put the labels back
-  -- above that background after the height is set, then put the reagent
-  -- use buttons back above the slots that raise with the chrome.
+  -- above that background after the height is set.
   ShowBagChrome(frame)
-  RaiseReagentOverlays()
-  SyncReagentMerchant()
   layoutPoints = nil
   layingOut = false
+  RefreshCombatMirror()
 end
 
 local function RequestLayout()
@@ -1794,7 +1709,9 @@ local function RequestLayout()
   local frame = CombinedFrame()
   if frame and frame:IsShown() then
     Layout(frame)
+    return
   end
+  RefreshCombatMirror()
 end
 
 -- The bag key places the saved groups inside its own secure press.
@@ -1835,6 +1752,7 @@ local function HookBagOpen()
   frame.ftkBagManagerShow = true
   frame:HookScript("OnShow", function()
     reagentOpenTried = false
+    RememberCombinedFrame()
     ScheduleLayout()
   end)
   frame:HookScript("OnHide", function()
@@ -1976,7 +1894,9 @@ events:SetScript("OnEvent", function(_, event)
     return
   end
   if event == "PLAYER_REGEN_ENABLED" then
-    HideQueuedOverlays()
+    if combatBags then
+      combatBags:Hide()
+    end
     if reagentReturnAfterCombat then
       reagentReturnAfterCombat = false
       local combined = CombinedFrame()
@@ -2000,25 +1920,8 @@ events:SetScript("OnEvent", function(_, event)
     end
     return
   end
-  if event == "BAG_CONTAINER_UPDATE" then
-    local combined = CombinedFrame()
-    if bagKey and (not combined or not combined:IsShown()) and not LockedDown() then
-      -- The next open has to be Blizzard's, so a swapped bag rebuilds
-      -- its slots. Our show path does not rebuild them.
-      bagKey:SetAttribute("n", 0)
-      ClearBagKey()
-    end
-  end
   if event == "UPDATE_BINDINGS" then
     ApplyBagKey()
-    return
-  end
-  if event == "MERCHANT_SHOW" or event == "MERCHANT_CLOSED" then
-    HookMerchantSell()
-    SyncReagentMerchant()
-    if C_Timer and C_Timer.After then
-      C_Timer.After(0, SyncReagentMerchant)
-    end
     return
   end
   if event == "USE_COMBINED_BAGS_CHANGED" and not UsingCombinedBags() then
@@ -2064,9 +1967,6 @@ FTK:RegisterModule({
     events:RegisterEvent("PLAYER_REGEN_ENABLED")
     events:RegisterEvent("UPDATE_BINDINGS")
     events:RegisterEvent("BAG_CONTAINER_UPDATE")
-    events:RegisterEvent("MERCHANT_SHOW")
-    events:RegisterEvent("MERCHANT_CLOSED")
-    HookMerchantSell()
     if C_Timer and C_Timer.After then
       C_Timer.After(0, function()
         PrimeCombined()
@@ -2086,6 +1986,9 @@ FTK:RegisterModule({
       events:RegisterEvent("PLAYER_REGEN_ENABLED")
     else
       ClearBagKey()
+    end
+    if combatBags then
+      combatBags:Hide()
     end
     RestoreBlizzardLayout()
   end,
