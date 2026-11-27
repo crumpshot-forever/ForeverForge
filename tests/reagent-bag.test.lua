@@ -261,6 +261,36 @@ local function CreateFrame(_kind, name, parent, template)
     return self._combined == true
   end
 
+  -- The grip and scroll bar of the Clean Bags window (BagWindow.lua).
+  -- Frames have no screen position here, so GetTop and GetBottom return
+  -- nil and the window keeps the height of its content.
+  function frame:GetEffectiveScale()
+    return 1
+  end
+  function frame:GetTop()
+    return nil
+  end
+  function frame:GetBottom()
+    return nil
+  end
+  function frame:GetNormalTexture()
+    return makeRegion()
+  end
+  function frame:GetHighlightTexture()
+    return makeRegion()
+  end
+  function frame:GetPushedTexture()
+    return makeRegion()
+  end
+  frame.SetNormalTexture = noop
+  frame.SetHighlightTexture = noop
+  frame.SetPushedTexture = noop
+  frame.SetOrientation = noop
+  frame.SetThumbTexture = noop
+  frame.SetValueStep = noop
+  frame.SetMinMaxValues = noop
+  frame.SetValue = noop
+
   if template and type(template) == "string" and template:find("ContainerFrameItemButton", 1, true) then
     frame._templateClick = function(self, mouseButton)
       local parent = self:GetParent()
@@ -516,6 +546,11 @@ local function loadSource(name, source)
 end
 
 loadSource("Core.lua", CORE_SRC)
+-- Clean Bags needs its helper modules first, in TOC order.
+loadSource("Modules/BagCategoryStore.lua", CATEGORY_STORE_SRC)
+loadSource("Modules/BagCategoryMenu.lua", CATEGORY_MENU_SRC)
+loadSource("Modules/BagSectionFlow.lua", SECTION_FLOW_SRC)
+loadSource("Modules/BagWindow.lua", BAG_WINDOW_SRC)
 loadSource("Modules/BagSections.lua", BAG_SRC)
 
 local combined = CreateFrame("Frame", "ContainerFrameCombinedBags", UIParent)

@@ -21,6 +21,10 @@ function luaLong(text) {
 }
 const prelude =
   "CORE_SRC = " + luaLong(fs.readFileSync(path.join(root, "Core.lua"), "utf8")) + "\n" +
+  "CATEGORY_STORE_SRC = " + luaLong(fs.readFileSync(path.join(root, "Modules", "BagCategoryStore.lua"), "utf8")) + "\n" +
+  "CATEGORY_MENU_SRC = " + luaLong(fs.readFileSync(path.join(root, "Modules", "BagCategoryMenu.lua"), "utf8")) + "\n" +
+  "SECTION_FLOW_SRC = " + luaLong(fs.readFileSync(path.join(root, "Modules", "BagSectionFlow.lua"), "utf8")) + "\n" +
+  "BAG_WINDOW_SRC = " + luaLong(fs.readFileSync(path.join(root, "Modules", "BagWindow.lua"), "utf8")) + "\n" +
   "BAG_SRC = " + luaLong(fs.readFileSync(path.join(root, "Modules", "BagSections.lua"), "utf8")) + "\n";
 
 const L = lauxlib.luaL_newstate();
