@@ -77,6 +77,22 @@ local function makeRegion()
   return region
 end
 
+-- A texture that remembers whether it is shown.
+local function makeShownRegion(shown)
+  local region = makeRegion()
+  region._shown = shown
+  function region:Show()
+    self._shown = true
+  end
+  function region:Hide()
+    self._shown = false
+  end
+  function region:IsShown()
+    return self._shown
+  end
+  return region
+end
+
 local function removeChild(parent, child)
   if not parent or not parent._children then
     return
@@ -310,6 +326,9 @@ local function CreateFrame(_kind, name, parent, template)
       record("SetBagID", id)
       self._setBag = id
     end
+    -- Blizzard's template shows the store highlight until its bag update
+    -- hides it (ContainerFrame.xml has no hidden flag on it).
+    frame.BattlepayItemTexture = makeShownRegion(true)
   end
 
   frame:SetParent(parent)
@@ -584,6 +603,8 @@ local slot2 = _G.ForeverForgeReagentButton2
 local slot3 = _G.ForeverForgeReagentButton3
 check(slot1 ~= nil and slot2 ~= nil and slot3 ~= nil, "reagent slots were built")
 check(slot1:IsShown() and slot2:IsShown() and slot3:IsShown(), "reagent slots are shown")
+check(not slot1.BattlepayItemTexture:IsShown(), "a filled reagent slot has no store highlight")
+check(not slot3.BattlepayItemTexture:IsShown(), "an empty reagent slot has no store highlight")
 
 local function sabotageParent(button)
   local parent = button:GetParent()
@@ -778,6 +799,42 @@ check(slot1.ftkUseOverlay:GetAttribute("item2") == "5 1", "slot 1 keeps its own 
 check(slot2.ftkUseOverlay:GetAttribute("item2") == "5 2", "slot 2 keeps its own item")
 check(slot1.ftkUseOverlay:GetFrameLevel() > slot1:GetFrameLevel(), "use button stays above the slot")
 check(type(slot1.ftkUseOverlay._wrap) == "string" and slot1.ftkUseOverlay._wrap:find("selectedTab == 2", 1, true) ~= nil, "buyback guard was installed")
+
+-- After a fight the closed backpack is laid out ahead of its next open.
+-- Its labels and reagent slots stay hidden until the backpack shows.
+local chrome = _G.ForeverForgeBagChrome
+combined:Hide()
+flushTimers()
+merchantEvents:GetScript("OnEvent")(merchantEvents, "PLAYER_REGEN_ENABLED")
+flushTimers()
+check(combined.ftkBagPrimed == true, "the closed backpack was laid out after the fight")
+check(chrome ~= nil and not chrome:IsShown(), "labels and reagent slots stay hidden on a closed backpack")
+combined:Show()
+combined:GetScript("OnShow")(combined)
+flushTimers()
+check(chrome ~= nil and chrome:IsShown(), "opening the backpack shows its labels and reagent slots")
+
+-- A bag mover (ForeverMove) clamps every bag window to the screen. A
+-- vendor opens the reagent window beside the backpack; it is parked off
+-- screen and must not stop at the screen corner.
+local reagentWindow = CreateFrame("Frame", "ContainerFrame6", UIParent)
+reagentWindow.GetBagID = function()
+  return 5
+end
+reagentWindow._clamped = true
+function reagentWindow:SetClampedToScreen(clamped)
+  self._clamped = clamped == true
+end
+function reagentWindow:IsClampedToScreen()
+  return self._clamped
+end
+reagentWindow:Show()
+mixinLayout(combined)
+flushTimers()
+check(not reagentWindow:IsClampedToScreen(), "the parked reagent window is not held on screen")
+combined:Hide()
+flushTimers()
+check(reagentWindow:IsClampedToScreen(), "the reagent window is clamped again once the backpack closes")
 
 if failures > 0 then
   error(failures .. " reagent bag check(s) failed")

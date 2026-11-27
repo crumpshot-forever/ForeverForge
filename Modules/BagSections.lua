@@ -639,8 +639,27 @@ local function ParkReagentFrame(reagent)
   if reagent.EnableMouse then
     reagent:EnableMouse(false)
   end
+  -- A window clamped to the screen (bag movers such as ForeverMove clamp
+  -- every bag) stops at the screen corner. The parked window is unclamped;
+  -- UnparkReagentFrame gives it its own clamp back.
+  if reagent.IsClampedToScreen and reagent.SetClampedToScreen then
+    if reagent.ftkParkedClamp == nil then
+      local ok, clamped = pcall(reagent.IsClampedToScreen, reagent)
+      reagent.ftkParkedClamp = ok and clamped == true
+    end
+    pcall(reagent.SetClampedToScreen, reagent, false)
+  end
   reagent:ClearAllPoints()
   reagent:SetPoint("TOPLEFT", UIParent, "TOPLEFT", -4000, 4000)
+end
+
+-- Gives a parked reagent window the clamp it had before parking.
+local function UnparkReagentFrame(reagent)
+  if not reagent or reagent.ftkParkedClamp == nil or not reagent.SetClampedToScreen then
+    return
+  end
+  pcall(reagent.SetClampedToScreen, reagent, reagent.ftkParkedClamp)
+  reagent.ftkParkedClamp = nil
 end
 
 -- B hides the combined backpack and leaves every other open bag where
@@ -716,6 +735,11 @@ local function PaintOwnedReagentButton(button, bag, slot)
   end
   if button.SetHasItem then
     pcall(button.SetHasItem, button, texture)
+  end
+  -- The item button template shows its store highlight until Blizzard's
+  -- bag update hides it, and that update never runs on these buttons.
+  if button.BattlepayItemTexture then
+    button.BattlepayItemTexture:Hide()
   end
   if button.UpdateQuestItem and C_Container and C_Container.GetContainerItemQuestInfo then
     local questOk, questInfo = pcall(C_Container.GetContainerItemQuestInfo, bag, slot)
@@ -1143,6 +1167,10 @@ local function BagChrome()
   return bagChrome
 end
 
+-- Places the chrome over the backpack and shows it while the backpack
+-- shows. A layout of the closed backpack (PrimeCombined after a fight)
+-- places labels, reagent slots and grip but keeps them hidden: the chrome
+-- is a child of UIParent and does not hide with the backpack.
 local function ShowBagChrome(frame)
   local chrome = BagChrome()
   if frame then
@@ -1171,6 +1199,10 @@ local function ShowBagChrome(frame)
   end
   pcall(chrome.SetFrameLevel, chrome, level)
   chrome:EnableMouse(false)
+  if frame and not frame:IsShown() then
+    chrome:Hide()
+    return
+  end
   chrome:Show()
   pcall(chrome.SetFrameLevel, chrome, level)
 end
@@ -1483,6 +1515,7 @@ function ReturnReagentButtons()
     return
   end
   local reagent = ShownFrameForBag(ReagentBagId()) or HiddenFrameForBag(ReagentBagId())
+  UnparkReagentFrame(reagent)
   local button
   for button in pairs(parkedReagentButtons) do
     parkedReagentButtons[button] = nil
