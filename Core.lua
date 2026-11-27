@@ -62,7 +62,7 @@ _G.ForeverForge = FTK
 -- from the git tag. This fallback is the menu version on a raw checkout.
 -- Publish a version by committing it and tagging vX.Y.Z on GitHub.
 -- Do not rename the live ForeverForge folder.
-FTK.VERSION = "1.8.4"
+FTK.VERSION = "1.9.0"
 FTK.modules = {}
 FTK.moduleOrder = {}
 FTK.pages = {}
@@ -372,6 +372,7 @@ function FTK:PrintHelp()
   self:Print("/ff minimap - show or hide the minimap button")
   self:Print("/ff modules - list features")
   self:Print("/ff talents - Talent Profiles: save, apply, or use the talent-window tabs")
+  self:Print("/ff turnins - quests ready to turn in, with the zone and NPC")
 end
 
 function FTK:OnSlash(msg)

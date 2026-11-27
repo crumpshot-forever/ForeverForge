@@ -32,6 +32,7 @@ Modules\ClickHeal.lua
 Modules\MailExpireAlert.lua
 Modules\NpcAssist.lua
 Modules\QuestAuto.lua
+Modules\ReadyTurnins.lua
 Modules\SocialConvenience.lua
 Modules\TalentProfiles.lua
 Modules\GroupFinder.lua

@@ -29,6 +29,7 @@ Do not rename the folder. The game only loads it when the folder name matches `F
 - **Mail Expire Alert.** On login, chat if recorded alt mail expires within N days. Snapshots when you close the mailbox.
 - **NPC Gossip Skip.** Skips single non-quest gossip and opens the flight map at flight masters. Hold Shift for normal talk.
 - **Auto Quest.** Accepts and turns in quests. Hold Shift to handle them yourself. Skips gold-cost and multi-reward turn-ins.
+- **Ready Turn-ins.** Quests in your log that are ready to turn in, grouped by zone, with the turn-in NPC. Click a row to track it. A chat line can fire when one becomes ready. Filter to this zone or to other zones. `/ff turnins`.
 - **Quick Accept.** Opt-in Accept Summon, Accept Res, auto-accept party invites, Decline Duels, and BG Auto-Release (all off by default).
 - **Talent Profiles.** Save talent builds by name per character and spec. Apply undoes pending changes, then stages the points for you to review and click Apply Changes. Saved builds also show as brass nameplates on the right of the talent window. Each plate shows the saved name and the tree that build spends the most points in. `/ff talents` for chat commands.
 
