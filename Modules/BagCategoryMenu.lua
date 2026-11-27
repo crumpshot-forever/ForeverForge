@@ -12,10 +12,11 @@
   neighbouring section in the same window.
 
   Blizzard's click handler treats an Alt click as a modified click, so the
-  item is neither used nor moved. This file hooks in after that handler
-  with HookScript and leaves the handler alone. On a reagent-bag slot the
-  secure use overlay hands a modified right-click to the item button, so
-  the hook runs there too.
+  item is neither used nor moved. This file hooks the button's PostClick
+  with HookScript: it runs after every click handler, keeps OnClick
+  untouched, and survives a SetScript on OnClick (the reagent-bag slots
+  set their own). On a reagent-bag slot the secure use overlay hands a
+  modified right-click to the item button, so the hook runs there too.
 ]]
 
 local FTK = ForeverForge
@@ -437,7 +438,7 @@ local function IsCategoryClick(mouseButton)
     and not IsControlKeyDown()
 end
 
--- Runs after Blizzard's OnClick of an item button.
+-- PostClick of an item button: runs after its click handler.
 local function OnItemButtonClick(button, mouseButton)
   if not IsCategoryClick(mouseButton) then
     return
@@ -468,7 +469,7 @@ function Menu:Attach(button, moduleID, itemIDOf)
     return
   end
   attached[button] = { moduleID = moduleID, itemIDOf = itemIDOf }
-  button:HookScript("OnClick", OnItemButtonClick)
+  button:HookScript("PostClick", OnItemButtonClick)
 end
 
 -- Right-click on a header opens the move menu of its section.
