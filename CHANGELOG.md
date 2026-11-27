@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- **Clean Bags.** In combat, B clicks the normal bag button, so the default bags open and an item can be used. That open no longer reports a blocked action.
+
+- **Clean Bags.** Reagent-bag items in the combined backpack sell on right-click at a vendor. The slot keeps Blizzard's click, including when the combined bag already contains the reagent bag.
+
 ## 1.9.0
 
 - **Ready Turn-ins.** Lists quests in your log that are ready to turn in, grouped by zone, with the turn-in NPC. The zone is the quest log header. The NPC comes from the quest text, or from Questie when that addon is installed. Click a row to track it. Optional chat line when one becomes ready (quests already ready at login stay quiet). Filter to this zone or to other zones. Configure, or `/ff turnins`.
